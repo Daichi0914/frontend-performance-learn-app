@@ -43,7 +43,7 @@ func TestPingHandler_Integration(t *testing.T) {
 		mysqlContainer.Terminate(ctx)
 	}()
 
-	mysqlConnStr, err := mysqlContainer.ConnectionString(ctx, "parseTime=true&loc=Local")
+	mysqlConnStr, err := mysqlContainer.ConnectionString(ctx, "parseTime=true&loc=Asia%2FTokyo")
 	require.NoError(t, err)
 
 	db, err := gorm.Open(gorm_mysql.Open(mysqlConnStr), &gorm.Config{})

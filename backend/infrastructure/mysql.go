@@ -13,7 +13,7 @@ import (
 func NewMySQLConnection() *gorm.DB {
 	dsn := os.Getenv("MYSQL_DSN")
 	if dsn == "" {
-		dsn = "root:root@tcp(127.0.0.1:3306)/appdb?charset=utf8mb4&parseTime=True&loc=Local"
+		dsn = "root:root@tcp(127.0.0.1:3306)/appdb?charset=utf8mb4&parseTime=True&loc=Asia%2FTokyo"
 	}
 
 	var db *gorm.DB
