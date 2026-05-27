@@ -49,7 +49,7 @@ export default function Home() {
 
   return (
     <div className="dashboard-container">
-      <h1 className="title" data-testid="title">Boilerplate Dashboard</h1>
+      <h1 className="title" data-testid="title">Frontend-performance-learn-app Dashboard</h1>
       <p className="subtitle">Go (Clean Architecture) + Next.js (App Router) + Docker Stack</p>
 
       <div className="status-grid">

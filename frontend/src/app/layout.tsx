@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Go + Next.js Clean Architecture Boilerplate",
-  description: "General-purpose boilerplate using Go Clean Architecture and Next.js App Router",
+  title: "Go + Next.js Clean Architecture Frontend-performance-learn-app",
+  description: "General-purpose frontend-performance-learn-app using Go Clean Architecture and Next.js App Router",
 };
 
 export const viewport = {

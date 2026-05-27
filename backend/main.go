@@ -21,7 +21,7 @@ func main() {
 	pingHandler.RegisterRoutes(mux)
 
 	// Start Server
-	log.Println("Server starting on :8080 (Clean Architecture Boilerplate)")
+	log.Println("Server starting on :8080 (Clean Architecture Frontend-performance-learn-app)")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

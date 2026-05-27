@@ -4,8 +4,8 @@
 
 up:
 	touch ./.htpasswd
-	podman volume create boilerplate_mysql_dev_data || true
-	podman volume create boilerplate_redis_dev_data || true
+	podman volume create frontend-performance-learn-app_mysql_dev_data || true
+	podman volume create frontend-performance-learn-app_redis_dev_data || true
 	podman compose up -d --scale cloudflared=0
 	rm -f ./.htpasswd
 
@@ -17,8 +17,8 @@ build:
 
 rebuild:
 	touch ./.htpasswd
-	podman volume create boilerplate_mysql_dev_data || true
-	podman volume create boilerplate_redis_dev_data || true
+	podman volume create frontend-performance-learn-app_mysql_dev_data || true
+	podman volume create frontend-performance-learn-app_redis_dev_data || true
 	podman compose up -d --build --scale cloudflared=0
 	rm -f ./.htpasswd
 
@@ -63,9 +63,9 @@ test-e2e:
 # --- E2E Environment ---
 
 e2e-up:
-	podman volume create boilerplate_mysql_e2e_data || true
-	podman volume create boilerplate_redis_e2e_data || true
-	podman compose -p boilerplate-e2e --env-file .env.e2e --profile e2e up -d --build mysql-e2e redis-e2e backend-e2e
+	podman volume create frontend-performance-learn-app_mysql_e2e_data || true
+	podman volume create frontend-performance-learn-app_redis_e2e_data || true
+	podman compose -p frontend-performance-learn-app-e2e --env-file .env.e2e --profile e2e up -d --build mysql-e2e redis-e2e backend-e2e
 
 e2e-down:
-	podman compose -p boilerplate-e2e --env-file .env.e2e --profile e2e down -v
+	podman compose -p frontend-performance-learn-app-e2e --env-file .env.e2e --profile e2e down -v

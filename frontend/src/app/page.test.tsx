@@ -20,7 +20,7 @@ test('renders dashboard title', () => {
   render(<Home />);
   const title = screen.getByTestId('title');
   expect(title).toBeDefined();
-  expect(title.textContent).toBe('Boilerplate Dashboard');
+  expect(title.textContent).toBe('Frontend-performance-learn-app Dashboard');
 });
 
 test('renders reload button', () => {

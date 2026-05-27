@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Boilerplate Dashboard Health Check', () => {
+test.describe('Frontend-performance-learn-app Dashboard Health Check', () => {
   test('should display dashboard title and connect button', async ({ page }) => {
     await page.goto('/');
     
     // Expect dashboard title to be visible
-    await expect(page.getByTestId('title')).toHaveText('Boilerplate Dashboard');
+    await expect(page.getByTestId('title')).toHaveText('Frontend-performance-learn-app Dashboard');
     
     // Expect reload/check button to be visible
     await expect(page.getByTestId('reload-btn')).toBeVisible();
