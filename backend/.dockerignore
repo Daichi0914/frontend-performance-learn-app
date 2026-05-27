@@ -1,0 +1,15 @@
+# Binaries
+main
+*.exe
+*.test
+*.prof
+
+# Development files
+.git
+.gitignore
+.dockerignore
+README.md
+
+# Test reports and logs
+coverage.out
+*.log

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Next.js build output
+.next
+out
+
+# Development files
+.git
+.gitignore
+.dockerignore
+README.md
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test reports
+coverage
+playwright-report
+html-report
+test-results
+
