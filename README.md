@@ -38,6 +38,17 @@
 
 必要な設定項目については、`.env.example`の末尾にある `GitHub Actions / CD (Deploy) Settings` セクションを参照してください。
 
+### Home Server上のポートマップ（管理用メモ）
+
+同一ホスト（Home Server）上で複数のアプリケーションを同居させるため、ポートの重複を防ぐために以下のポートマップで管理しています。
+
+| アプリケーション | 環境 | Nginx (公開ポート) | MySQL (ホスト側) | Redis (ホスト側) |
+| :--- | :--- | :--- | :--- | :--- |
+| **websocket_demo** | `prod` | `8000` | `3306` | `6379` |
+| **websocket_demo** | `stg` | `8080` | `3307` | `6380` |
+| **frontend-performance-learn-app** (本作) | `prod` | **`8001`** | **`3309`** | **`6382`** |
+| **frontend-performance-learn-app** (本作) | `stg` | **`8081`** | **`3308`** | **`6381`** |
+
 ### デプロイ先サーバー（セルフホストランナー）の事前準備
 デプロイワークフロー（`deploy.yml`）は `runs-on: self-hosted` を指定しているため、対象サーバーが GitHub Actions のセルフホストランナーとして登録されている必要があります。
 
