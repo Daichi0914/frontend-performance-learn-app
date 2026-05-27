@@ -1,0 +1,18 @@
+# Exclude git and ignore files
+.git
+.gitignore
+.dockerignore
+
+# Exclude README and documentation
+README.md
+
+# Exclude temporary or backup files
+*~
+*.swp
+*.bak
+*.orig
+
+# Exclude local certificates or keys to prevent accidental inclusion
+*.key
+*.pem
+*.crt

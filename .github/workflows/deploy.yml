@@ -47,29 +47,42 @@ jobs:
       - name: Lowercase repository name
         run: echo "GHCR_REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push Frontend
         run: |
-          docker build \
+          docker buildx build \
             --build-arg NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }} \
             --target runner \
+            --cache-from=type=gha,scope=frontend-release \
+            --cache-to=type=gha,mode=max,scope=frontend-release \
+            --push \
             -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/frontend:${{ env.IMAGE_TAG }} \
             ./frontend
-          docker push ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/frontend:${{ env.IMAGE_TAG }}
 
       - name: Build and push Backend
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/backend:${{ env.IMAGE_TAG }} ./backend
-          docker push ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/backend:${{ env.IMAGE_TAG }}
+          docker buildx build \
+            --cache-from=type=gha,scope=backend-release \
+            --cache-to=type=gha,mode=max,scope=backend-release \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/backend:${{ env.IMAGE_TAG }} \
+            ./backend
 
       - name: Build and push Nginx
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/nginx:${{ env.IMAGE_TAG }} ./nginx
-          docker push ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/nginx:${{ env.IMAGE_TAG }}
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/nginx:${{ env.IMAGE_TAG }} \
+            ./nginx
 
       - name: Build and push MySQL
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/mysql:${{ env.IMAGE_TAG }} ./mysql
-          docker push ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/mysql:${{ env.IMAGE_TAG }}
+          docker buildx build \
+            --push \
+            -t ${{ env.REGISTRY }}/${{ env.GHCR_REPO }}/mysql:${{ env.IMAGE_TAG }} \
+            ./mysql
 
       - name: Upload compose.yaml for deploy job
         uses: actions/upload-artifact@v4

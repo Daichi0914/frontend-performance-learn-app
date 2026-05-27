@@ -147,14 +147,10 @@ jobs:
             -t ghcr.io/${GHCR_REPO}/backend:dev ./backend &
           
           docker buildx build \
-            --cache-from=type=gha,scope=nginx \
-            --cache-to=type=gha,mode=max,scope=nginx \
             --load \
             -t ghcr.io/${GHCR_REPO}/nginx:dev ./nginx &
           
           docker buildx build \
-            --cache-from=type=gha,scope=mysql \
-            --cache-to=type=gha,mode=max,scope=mysql \
             --load \
             -t ghcr.io/${GHCR_REPO}/mysql:dev ./mysql &
           

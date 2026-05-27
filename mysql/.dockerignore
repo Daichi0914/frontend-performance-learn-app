@@ -1,0 +1,17 @@
+# Exclude git and ignore files
+.git
+.gitignore
+.dockerignore
+
+# Exclude README and documentation
+README.md
+
+# Exclude temporary data, backups or dumps
+data/
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+
+# Exclude logs
+*.log
