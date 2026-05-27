@@ -1,0 +1,165 @@
+services:
+  nginx:
+    image: ghcr.io/${GHCR_REPO}/nginx:${APP_ENV}
+    build:
+      context: ./nginx
+    container_name: boilerplate-nginx-${APP_ENV}
+    ports:
+      - '${NGINX_PORT:-8080}:80'
+    depends_on:
+      - frontend
+      - backend
+    restart: ${RESTART_POLICY:-no}
+    environment:
+      - AUTH_BASIC_STATE=${AUTH_BASIC_STATE:-off}
+    volumes:
+      - ./.htpasswd:/etc/nginx/.htpasswd:ro
+
+  cloudflared:
+    image: docker.io/cloudflare/cloudflared:latest
+    container_name: boilerplate-cloudflared-${APP_ENV}
+    restart: ${RESTART_POLICY:-no}
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+
+  frontend:
+    image: ghcr.io/${GHCR_REPO}/frontend:${APP_ENV}
+    build:
+      context: ./frontend
+      target: ${FRONTEND_TARGET:-dev}
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: boilerplate-frontend-${APP_ENV}
+    restart: ${RESTART_POLICY:-no}
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+
+  backend:
+    image: ghcr.io/${GHCR_REPO}/backend:${APP_ENV}
+    build:
+      context: ./backend
+    container_name: boilerplate-backend-${APP_ENV}
+    restart: ${RESTART_POLICY:-no}
+    environment:
+      MYSQL_DSN: ${MYSQL_DSN}
+      REDIS_ADDR: ${REDIS_ADDR}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
+      APP_ENV: ${APP_ENV}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z localhost 8080 || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  mysql:
+    image: ghcr.io/${GHCR_REPO}/mysql:${APP_ENV}
+    build:
+      context: ./mysql
+    container_name: boilerplate-mysql-${APP_ENV}
+    restart: ${RESTART_POLICY:-no}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER:-app_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - '${MYSQL_EXPOSE:-127.0.0.1:3306}:3306'
+    volumes:
+      - boilerplate_mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-u',
+          'root',
+          '-p${MYSQL_ROOT_PASSWORD}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: boilerplate-redis-${APP_ENV}
+    restart: ${RESTART_POLICY:-no}
+    ports:
+      - '${REDIS_EXPOSE:-127.0.0.1:6379}:6379'
+    volumes:
+      - boilerplate_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- E2E Testing Services (CI用) ---
+  mysql-e2e:
+    profiles: [e2e]
+    image: docker.io/library/mysql:8.0
+    container_name: boilerplate-mysql-e2e
+    environment:
+      MYSQL_ROOT_PASSWORD: ${E2E_MYSQL_ROOT_PASSWORD:-e2e_test_password}
+      MYSQL_DATABASE: ${E2E_MYSQL_DATABASE:-appdb_e2e}
+    ports:
+      - '8082:3306'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-u',
+          'root',
+          '-p${E2E_MYSQL_ROOT_PASSWORD:-e2e_test_password}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis-e2e:
+    profiles: [e2e]
+    image: docker.io/library/redis:7-alpine
+    container_name: boilerplate-redis-e2e
+    ports:
+      - '6380:6379'
+
+  backend-e2e:
+    profiles: [e2e]
+    image: ghcr.io/${GHCR_REPO}/backend:latest
+    build:
+      context: ./backend
+    container_name: boilerplate-backend-e2e
+    ports:
+      - '8081:8080'
+    environment:
+      MYSQL_DSN: ${E2E_MYSQL_DSN:-}
+      REDIS_ADDR: ${E2E_REDIS_ADDR:-redis-e2e:6379}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
+      APP_ENV: ${APP_ENV}
+    depends_on:
+      mysql-e2e:
+        condition: service_healthy
+      redis-e2e:
+        condition: service_started
+
+volumes:
+  boilerplate_mysql_data:
+    name: ${MYSQL_VOLUME_NAME}
+    external: true
+  boilerplate_redis_data:
+    name: ${REDIS_VOLUME_NAME}
+    external: true

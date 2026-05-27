@@ -1,0 +1,8 @@
+services:
+  frontend:
+    volumes:
+      # マウントしてホットリロードを有効にする
+      - ./frontend:/app
+      # コンテナ内の node_modules と .next を保護（ホスト側で上書きしないようにする）
+      - /app/node_modules
+      - /app/.next

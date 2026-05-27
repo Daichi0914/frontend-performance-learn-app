@@ -1,0 +1,93 @@
+name: Initialize Boilerplate with Repository Name
+
+on:
+  push:
+    branches:
+      - main
+  repository_dispatch:
+    types: [initialize_boilerplate]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+
+    # テンプレートリポジトリ自体に対するプッシュ時は実行しないように制御
+    if: github.repository != 'Daichi0914/project_boilerplate'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup casing variables
+        run: |
+          REPO_NAME=$(basename "$GITHUB_REPOSITORY")
+          echo "REPO_NAME=${REPO_NAME}" >> $GITHUB_ENV
+          
+          # 各種ケース変換（小文字、大文字、先頭大文字）
+          REPO_NAME_LOWER=$(echo "${REPO_NAME}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME_UPPER=$(echo "${REPO_NAME}" | tr '[:lower:]' '[:upper:]')
+          REPO_NAME_CAP=$(echo "${REPO_NAME_LOWER}" | perl -pe 's/^(.)/\U$1/')
+          
+          echo "REPO_NAME_LOWER=${REPO_NAME_LOWER}" >> $GITHUB_ENV
+          echo "REPO_NAME_UPPER=${REPO_NAME_UPPER}" >> $GITHUB_ENV
+          echo "REPO_NAME_CAP=${REPO_NAME_CAP}" >> $GITHUB_ENV
+
+      - name: Replace boilerplate placeholders safely
+        run: |
+          echo "Replacing 'boilerplate' with ${REPO_NAME_LOWER} / ${REPO_NAME_CAP} / ${REPO_NAME_UPPER}"
+
+          # README.mdからテンプレート用の初期設定セクションを削除
+          if [ -f README.md ]; then
+            echo "Cleaning up README.md template section..."
+            perl -0777 -pi -e 's/<!-- START_TEMPLATE_ONLY -->.*?<!-- END_TEMPLATE_ONLY -->\n*//gs' README.md
+          fi
+
+          # テキストファイルのみを対象に置換処理を実行
+          find . \
+            -type f \
+            ! -path "./.git/*" \
+            ! -path "./node_modules/*" \
+            ! -path "./.next/*" \
+            ! -path "./.antigravitycli/*" \
+            ! -path "./.github/workflows/*" \
+            ! -name "*.png" \
+            ! -name "*.jpg" \
+            ! -name "*.jpeg" \
+            ! -name "*.gif" \
+            ! -name "*.pdf" \
+            ! -name "*.zip" \
+            ! -name "*.ico" \
+            ! -name "*.db" \
+            ! -name "*.tar.gz" \
+            | while read -r file; do
+              if file "$file" | grep -q text; then
+                echo "Processing: $file"
+                # 大文字小文字のパターンに合わせて一括置換
+                perl -pi -e "s/boilerplate/${REPO_NAME_LOWER}/g; s/Boilerplate/${REPO_NAME_CAP}/g; s/BOILERPLATE/${REPO_NAME_UPPER}/g" "$file"
+              else
+                echo "Skipping binary file: $file"
+              fi
+            done
+
+      - name: Delete self workflow
+        run: |
+          echo "Deleting initialization workflow..."
+          rm -f .github/workflows/initialize_boilerplate.yml
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          
+          # 変更がある場合のみコミット＆プッシュを実行
+          if ! git diff --cached --quiet; then
+            git commit -m "Initialize project with name '${{ env.REPO_NAME }}' and delete setup workflow"
+            git push
+          else
+            echo "No changes detected."
+          fi

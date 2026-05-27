@@ -1,0 +1,12 @@
+.env
+.env.e2e
+.DS_Store
+node_modules/
+.next/
+backend/main
+coverage.out
+dist/
+playwright-report/
+test-results/
+.antigravitycli/
+

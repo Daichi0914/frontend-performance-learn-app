@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+# MYSQL_PWD は mysql コマンドがパスワードとして使用する特殊な環境変数です
+export MYSQL_PWD=$MYSQL_ROOT_PASSWORD
+
+mysql -u root <<EOSQL
+  CREATE USER IF NOT EXISTS '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';
+  GRANT ALL PRIVILEGES ON $MYSQL_DATABASE.* TO '$MYSQL_USER'@'%';
+  FLUSH PRIVILEGES;
+EOSQL
