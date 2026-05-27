@@ -120,15 +120,15 @@ jobs:
           GHCR_REPO=${{ env.GHCR_REPO }}
           MYSQL_VOLUME_NAME=${{ env.PROJECT_NAME }}-${{ env.TARGET_ENV }}_mysql_${{ env.TARGET_ENV }}_data
           REDIS_VOLUME_NAME=${{ env.PROJECT_NAME }}-${{ env.TARGET_ENV }}_redis_${{ env.TARGET_ENV }}_data
-          NGINX_PORT=${{ env.TARGET_ENV == 'prod' && '8000' || '8080' }}
+          NGINX_PORT=${{ env.TARGET_ENV == 'prod' && '8001' || '8081' }}
           MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
           MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
           MYSQL_USER=${{ secrets.MYSQL_USER }}
           MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
           MYSQL_DSN=${{ secrets.MYSQL_DSN }}
-          MYSQL_EXPOSE=${{ env.TARGET_ENV == 'prod' && '127.0.0.1:3306' || '127.0.0.1:3307' }}
+          MYSQL_EXPOSE=${{ env.TARGET_ENV == 'prod' && '127.0.0.1:3309' || '127.0.0.1:3308' }}
           REDIS_ADDR=redis:6379
-          REDIS_EXPOSE=${{ env.TARGET_ENV == 'prod' && '127.0.0.1:6379' || '127.0.0.1:6380' }}
+          REDIS_EXPOSE=${{ env.TARGET_ENV == 'prod' && '127.0.0.1:6382' || '127.0.0.1:6381' }}
           AUTH_BASIC_STATE=${{ env.TARGET_ENV == 'stg' && 'Restricted' || 'off' }}
           CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           EOF
