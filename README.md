@@ -37,3 +37,24 @@
 本プロジェクトには自動デプロイ用のワークフロー（`.github/workflows/deploy.yml`）が用意されています。デプロイ環境を構築する際は、GitHub Actions の Environment に必要な環境変数およびシークレットを設定してください。
 
 必要な設定項目については、`.env.example`の末尾にある `GitHub Actions / CD (Deploy) Settings` セクションを参照してください。
+
+### デプロイ先サーバー（セルフホストランナー）の事前準備
+デプロイワークフロー（`deploy.yml`）は `runs-on: self-hosted` を指定しているため、対象サーバーが GitHub Actions のセルフホストランナーとして登録されている必要があります。
+
+1. **GitHub Actions セルフホストランナーのセットアップ**
+   - リポジトリの **Settings** -> **Actions** -> **Runners** に移動し、**New self-hosted runner** をクリックします。
+   - プラットフォームの選択画面で **Linux** を選択し、表示される手順に従ってサーバー上でランナーをダウンロードおよびセットアップしてください。
+   - ランナーをサーバー上で常時稼働させるため、セットアップ完了後にランナーディレクトリ内で `./svc.sh install` および `./svc.sh start` を実行し、システムサービスとして登録・起動することを推奨します。
+     > [!NOTE]
+     > **自分向けのメモ:**  
+     > ホームサーバー上では `~/actions-runner/` 配下にプロジェクトごとのディレクトリを作成し、その中でダウンロードおよび `./svc.sh` によるシステムサービス化を実行する運用としています。
+
+2. **`podman-compose` のインストールとパスの確認**
+   - ワークフロー内の systemd サービス定義は `/usr/bin/podman-compose` に実行ファイルが存在することを前提としています。
+   - `which podman-compose` の実行結果が異なるパス（例: `/usr/local/bin/podman-compose` や `~/.local/bin/podman-compose` など）である場合は、`.github/workflows/deploy.yml` の `ExecStart`/`ExecStop` のパスを実際のパスに修正してください。
+
+3. **systemd ユーザーサービスの常時起動設定 (Linger)**
+   - デプロイしたコンテナ（systemd ユーザーサービス）が、ランナーユーザーのログアウト時やサーバー再起動時にも常時稼働し続けるように、サーバー側で以下のコマンドを実行して Linger を有効化してください。
+     ```bash
+     sudo loginctl enable-linger <ランナーを実行するユーザー名>
+     ```
