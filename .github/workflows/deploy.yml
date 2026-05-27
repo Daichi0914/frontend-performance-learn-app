@@ -147,6 +147,33 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
+      - name: Create and Enable Systemd Service
+        run: |
+          # systemdのユーザーサービス定義ディレクトリを作成
+          mkdir -p ~/.config/systemd/user
+          
+          # サービス定義ファイルを生成（環境に合わせて動的に作成）
+          cat << 'EOF' > ~/.config/systemd/user/${{ env.PROJECT_NAME }}-${{ env.TARGET_ENV }}.service
+          [Unit]
+          Description=Podman Compose ${{ env.PROJECT_NAME }} (${{ env.TARGET_ENV }})
+          After=network.target
+
+          [Service]
+          Type=simple
+          WorkingDirectory=%h/projects/${{ env.PROJECT_NAME }}
+          ExecStart=/usr/bin/podman-compose --env-file .env.${{ env.TARGET_ENV }} -p ${{ env.PROJECT_NAME }}-${{ env.TARGET_ENV }} -f compose.yaml up
+          ExecStop=/usr/bin/podman-compose --env-file .env.${{ env.TARGET_ENV }} -p ${{ env.PROJECT_NAME }}-${{ env.TARGET_ENV }} -f compose.yaml down
+          Restart=always
+
+          [Install]
+          WantedBy=default.target
+          EOF
+          
+          # サービスファイルをリロードし、自動起動を有効化
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user daemon-reload
+          systemctl --user enable ${{ env.PROJECT_NAME }}-${{ env.TARGET_ENV }}.service
+
       - name: Deploy via Systemd
         run: |
           cd ~/projects/${{ env.PROJECT_NAME }}
