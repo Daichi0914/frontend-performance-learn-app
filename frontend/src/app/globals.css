@@ -1,4 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
 
 :root {
   --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #4c1d95 100%);
@@ -24,9 +27,6 @@ body {
   background: var(--bg-gradient);
   color: var(--text-main);
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   overflow-x: hidden;
 }
 
@@ -42,6 +42,7 @@ body {
   padding: 40px;
   animation: fadeIn 0.5s ease-out;
   text-align: center;
+  margin: 10vh auto;
 }
 
 .title {
@@ -49,6 +50,7 @@ body {
   font-weight: 700;
   margin-bottom: 8px;
   background: linear-gradient(to right, #a78bfa, #f472b6);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

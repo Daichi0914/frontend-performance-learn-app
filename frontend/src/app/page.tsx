@@ -42,9 +42,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    checkHealth();
+    const timer = setTimeout(() => {
+      checkHealth();
+    }, 0);
     const interval = setInterval(checkHealth, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [checkHealth]);
 
   return (
