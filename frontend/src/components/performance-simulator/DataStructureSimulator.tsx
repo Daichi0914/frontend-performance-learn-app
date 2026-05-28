@@ -1,6 +1,22 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import {
+  BENCHMARK_ITERATIONS,
+  LONG_TASK_THRESHOLD_MS,
+  SLIDER_CONFIG,
+  benchmarkAoS,
+  benchmarkSoA,
+  createArrayOfStructs,
+  createBenchmarkComparison,
+  createStructOfArrays,
+  generatePropertyNames,
+  getBenchmarkTaskLabel,
+  mergeBenchmarkResult,
+  type BenchmarkResult,
+  type BenchmarkTarget,
+  type RunningTarget,
+} from "./dataStructureBenchmark";
 import styles from "./DataStructureSimulator.module.scss";
 
 // --- 型定義 ---
@@ -9,148 +25,62 @@ interface DataStructureSimulatorProps {
   onLongTask?: (durationMs: number, taskName: string) => void;
 }
 
-/** ベンチマーク計測結果を格納する型 */
-interface BenchmarkResult {
-  aosDurationMs: number | null;
-  soaDurationMs: number | null;
-  /** DCE回避用: AoS計算で得られた合計値 */
-  aosSum: number | null;
-  /** DCE回避用: SoA計算で得られた合計値 */
-  soaSum: number | null;
-  /** DCE回避用: AoS計算で得られた平均値 */
-  aosAverage: number | null;
-  /** DCE回避用: SoA計算で得られた平均値 */
-  soaAverage: number | null;
-  /** ベンチマーク実行時のデータ件数 */
-  itemCount: number;
-  /** ベンチマーク実行時のプロパティ数 */
-  propertyCount: number;
+interface BenchmarkActionButtonProps {
+  target: BenchmarkTarget;
+  runningTarget: RunningTarget;
+  label: string;
+  runningLabel: string;
+  className?: string;
+  onRun: (target: BenchmarkTarget) => void;
 }
 
-type BenchmarkTarget = "aos" | "soa" | "both";
-type RunningTarget = BenchmarkTarget | null;
-
-/** AoSの1要素を表現する型（動的プロパティ数に対応） */
-type StructElement = Record<string, number>;
-
-/** SoAを表現する型（プロパティ名→Float64Arrayのマップ） */
-type StructOfArrays = Record<string, Float64Array>;
-
-// --- 定数 ---
-
-const BENCHMARK_ITERATIONS = 100;
-const LONG_TASK_THRESHOLD_MS = 50;
-
-const SLIDER_CONFIG = {
-  itemCount: { min: 1000, max: 200000, step: 1000, default: 10000 },
-  propertyCount: { min: 3, max: 20, step: 1, default: 5 },
-} as const;
-
-// --- ユーティリティ関数 ---
-
-/** プロパティ名を生成（prop_0, prop_1, ...） */
-function generatePropertyNames(count: number): string[] {
-  return Array.from({ length: count }, (_, index) => `prop_${index}`);
+function BenchmarkLoadingIndicator({ label }: { label: string }) {
+  return (
+    <span className={styles.loadingWrapper}>
+      <svg
+        className={styles.spinner}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <circle
+          className={styles.spinnerTrack}
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        />
+        <path
+          className={styles.spinnerFill}
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        />
+      </svg>
+      {label}
+    </span>
+  );
 }
 
-/**
- * AoS形式のデータを生成
- * 各オブジェクトが全プロパティを持つ、一般的なオブジェクト配列
- */
-function createArrayOfStructs(
-  itemCount: number,
-  propertyNames: string[],
-): StructElement[] {
-  return Array.from({ length: itemCount }, () => {
-    const element: StructElement = {};
-    for (const name of propertyNames) {
-      element[name] = Math.random() * 100;
-    }
-    return element;
-  });
-}
+function BenchmarkActionButton({
+  target,
+  runningTarget,
+  label,
+  runningLabel,
+  className,
+  onRun,
+}: BenchmarkActionButtonProps) {
+  const isRunning = runningTarget === target;
 
-/**
- * SoA形式のデータを生成
- * プロパティごとに連続したFloat64Arrayを使い、メモリ局所性を最大化
- */
-function createStructOfArrays(
-  itemCount: number,
-  propertyNames: string[],
-): StructOfArrays {
-  const soa: StructOfArrays = {};
-  for (const name of propertyNames) {
-    const array = new Float64Array(itemCount);
-    for (let i = 0; i < itemCount; i++) {
-      array[i] = Math.random() * 100;
-    }
-    soa[name] = array;
-  }
-  return soa;
-}
-
-/**
- * AoS形式で先頭プロパティの合計・平均をBENCHMARK_ITERATIONS回計算
- * オブジェクトの各プロパティがメモリ上で散在するため、キャッシュミスが多発する
- */
-function benchmarkAoS(
-  data: StructElement[],
-  targetProperty: string,
-): { durationMs: number; sum: number; average: number } {
-  const startTime = performance.now();
-
-  let totalSum = 0;
-  let lastAverage = 0;
-
-  for (let iter = 0; iter < BENCHMARK_ITERATIONS; iter++) {
-    let sum = 0;
-    for (let i = 0; i < data.length; i++) {
-      sum += data[i][targetProperty];
-    }
-    totalSum += sum;
-    lastAverage = sum / data.length;
-  }
-
-  const endTime = performance.now();
-
-  return {
-    durationMs: endTime - startTime,
-    sum: totalSum,
-    average: lastAverage,
-  };
-}
-
-/**
- * SoA形式で先頭プロパティの合計・平均をBENCHMARK_ITERATIONS回計算
- * 同じプロパティが連続配置されるため、CPUプリフェッチャーが効率的に動作する
- */
-function benchmarkSoA(
-  data: StructOfArrays,
-  targetProperty: string,
-): { durationMs: number; sum: number; average: number } {
-  const startTime = performance.now();
-
-  let totalSum = 0;
-  let lastAverage = 0;
-  const array = data[targetProperty];
-  const length = array.length;
-
-  for (let iter = 0; iter < BENCHMARK_ITERATIONS; iter++) {
-    let sum = 0;
-    for (let i = 0; i < length; i++) {
-      sum += array[i];
-    }
-    totalSum += sum;
-    lastAverage = sum / length;
-  }
-
-  const endTime = performance.now();
-
-  return {
-    durationMs: endTime - startTime,
-    sum: totalSum,
-    average: lastAverage,
-  };
+  return (
+    <button
+      type="button"
+      onClick={() => onRun(target)}
+      disabled={runningTarget !== null}
+      className={`${styles.submitButton} ${className ?? ""}`}
+    >
+      {isRunning ? <BenchmarkLoadingIndicator label={runningLabel} /> : label}
+    </button>
+  );
 }
 
 // --- コンポーネント ---
@@ -193,40 +123,14 @@ export default function DataStructureSimulator({
         soaResult = benchmarkSoA(soaData, targetProperty);
       }
 
-      setResult((previousResult) => {
-        const canKeepPrevious =
-          previousResult?.itemCount === itemCount &&
-          previousResult.propertyCount === propertyCount;
-
-        return {
-          aosDurationMs:
-            aosResult?.durationMs ??
-            (canKeepPrevious ? previousResult?.aosDurationMs : null) ??
-            null,
-          soaDurationMs:
-            soaResult?.durationMs ??
-            (canKeepPrevious ? previousResult?.soaDurationMs : null) ??
-            null,
-          aosSum:
-            aosResult?.sum ??
-            (canKeepPrevious ? previousResult?.aosSum : null) ??
-            null,
-          soaSum:
-            soaResult?.sum ??
-            (canKeepPrevious ? previousResult?.soaSum : null) ??
-            null,
-          aosAverage:
-            aosResult?.average ??
-            (canKeepPrevious ? previousResult?.aosAverage : null) ??
-            null,
-          soaAverage:
-            soaResult?.average ??
-            (canKeepPrevious ? previousResult?.soaAverage : null) ??
-            null,
+      setResult((previousResult) =>
+        mergeBenchmarkResult(previousResult, {
+          aosResult,
+          soaResult,
           itemCount,
           propertyCount,
-        };
-      });
+        }),
+      );
       setRunningTarget(null);
       isRunningRef.current = false;
 
@@ -234,24 +138,13 @@ export default function DataStructureSimulator({
       const totalDuration =
         (aosResult?.durationMs ?? 0) + (soaResult?.durationMs ?? 0);
       if (totalDuration > LONG_TASK_THRESHOLD_MS) {
-        const taskLabel =
-          target === "both" ? "AoS vs SoA" : target === "aos" ? "AoS" : "SoA";
+        const taskLabel = getBenchmarkTaskLabel(target);
         onLongTask?.(totalDuration, `DataStructure Benchmark (${taskLabel})`);
       }
     });
   }, [itemCount, propertyCount, onLongTask]);
 
-  const aosDurationMs = result?.aosDurationMs ?? null;
-  const soaDurationMs = result?.soaDurationMs ?? null;
-  const comparison =
-    aosDurationMs !== null && soaDurationMs !== null && aosDurationMs > 0
-      ? {
-          aosDurationMs,
-          soaDurationMs,
-          speedupPercentage:
-            ((aosDurationMs - soaDurationMs) / aosDurationMs) * 100,
-        }
-      : null;
+  const comparison = createBenchmarkComparison(result);
 
   /** バーチャートの最大値（2つのうち大きい方を100%とする） */
   const maxDuration = result
@@ -468,105 +361,29 @@ export default function DataStructureSimulator({
 
             {/* 実行ボタン */}
             <div className={styles.benchmarkActions}>
-              <button
-                type="button"
-                onClick={() => runBenchmark("aos")}
-                disabled={runningTarget !== null}
-                className={`${styles.submitButton} ${styles.aos}`}
-              >
-                {runningTarget === "aos" ? (
-                  <span className={styles.loadingWrapper}>
-                    <svg
-                      className={styles.spinner}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className={styles.spinnerTrack}
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className={styles.spinnerFill}
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    AoS 実行中...
-                  </span>
-                ) : (
-                  "AoS 実行"
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => runBenchmark("soa")}
-                disabled={runningTarget !== null}
-                className={`${styles.submitButton} ${styles.soa}`}
-              >
-                {runningTarget === "soa" ? (
-                  <span className={styles.loadingWrapper}>
-                    <svg
-                      className={styles.spinner}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className={styles.spinnerTrack}
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className={styles.spinnerFill}
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    SoA 実行中...
-                  </span>
-                ) : (
-                  "SoA 実行"
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => runBenchmark("both")}
-                disabled={runningTarget !== null}
-                className={styles.submitButton}
-              >
-                {runningTarget === "both" ? (
-                  <span className={styles.loadingWrapper}>
-                    <svg
-                      className={styles.spinner}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className={styles.spinnerTrack}
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className={styles.spinnerFill}
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    両方実行中...
-                  </span>
-                ) : (
-                  "AoS / SoA 両方実行"
-                )}
-              </button>
+              <BenchmarkActionButton
+                target="aos"
+                runningTarget={runningTarget}
+                label="AoS 実行"
+                runningLabel="AoS 実行中..."
+                className={styles.aos}
+                onRun={runBenchmark}
+              />
+              <BenchmarkActionButton
+                target="soa"
+                runningTarget={runningTarget}
+                label="SoA 実行"
+                runningLabel="SoA 実行中..."
+                className={styles.soa}
+                onRun={runBenchmark}
+              />
+              <BenchmarkActionButton
+                target="both"
+                runningTarget={runningTarget}
+                label="AoS / SoA 両方実行"
+                runningLabel="両方実行中..."
+                onRun={runBenchmark}
+              />
             </div>
           </div>
 

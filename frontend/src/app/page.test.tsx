@@ -17,15 +17,25 @@ global.fetch = vi.fn().mockImplementation(() =>
 );
 
 test('renders dashboard title', () => {
+  // Given
   render(<Home />);
+
+  // When
   const title = screen.getByTestId('title');
+
+  // Then
   expect(title).toBeDefined();
   expect(title.textContent).toBe('Frontend-performance-learn-app Dashboard');
 });
 
 test('renders reload button', () => {
+  // Given
   render(<Home />);
+
+  // When
   const button = screen.getByTestId('reload-btn');
+
+  // Then
   expect(button).toBeDefined();
   expect(button.textContent).toBe('Check Connection');
 });

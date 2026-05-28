@@ -1,6 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  FPS_DROP_CONSECUTIVE_FRAMES,
+  FPS_THRESHOLD_WARNING,
+  calculateJankMarkerPosition,
+  formatTimestamp,
+  generateLogId,
+  getFpsStatus,
+  getLogIcon,
+  getNewExternalLogEntries,
+  isJankFrame,
+  type PerformanceLogType,
+} from "./performanceMonitorMetrics";
 import styles from "./PerformanceMonitor.module.scss";
 
 // ─── 型定義 ───────────────────────────────────────────────
@@ -8,60 +20,13 @@ import styles from "./PerformanceMonitor.module.scss";
 export interface PerformanceLogEntry {
   id: string;
   timestamp: Date;
-  type: "long-task" | "fps-drop" | "gc-event" | "info" | "warning";
+  type: PerformanceLogType;
   message: string;
   durationMs?: number;
 }
 
-interface PerformanceMonitorProps {
+export interface PerformanceMonitorProps {
   externalLogs?: PerformanceLogEntry[];
-}
-
-// ─── 定数 ─────────────────────────────────────────────────
-/** ブラウザの標準描画レートを基準としたFPS閾値 */
-const FPS_THRESHOLD_GOOD = 60;
-const FPS_THRESHOLD_WARNING = 30;
-
-/** FPS低下を連続検知した場合にのみ警告するための閾値 */
-const FPS_DROP_CONSECUTIVE_FRAMES = 5;
-const JANK_FRAME_THRESHOLD_MS = 50;
-
-// ─── ヘルパー ─────────────────────────────────────────────
-/** ログ種別に応じたアイコンを返す */
-function getLogIcon(type: PerformanceLogEntry["type"]): string {
-  const iconMap: Record<PerformanceLogEntry["type"], string> = {
-    "long-task": "🔴",
-    "fps-drop": "🟠",
-    "gc-event": "🟣",
-    info: "🔵",
-    warning: "🟡",
-  };
-  return iconMap[type];
-}
-
-/** タイムスタンプを HH:MM:SS.mmm 形式にフォーマット */
-function formatTimestamp(date: Date): string {
-  return date.toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    fractionalSecondDigits: 3,
-  });
-}
-
-/** 一意なIDを生成（crypto.randomUUID非対応環境のフォールバック付き） */
-function generateLogId(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-// ─── FPSステータス判定 ────────────────────────────────────────
-function getFpsStatus(fps: number): "good" | "warning" | "danger" {
-  if (fps >= FPS_THRESHOLD_GOOD) return "good";
-  if (fps >= FPS_THRESHOLD_WARNING) return "warning";
-  return "danger";
 }
 
 // ─── コンポーネント ───────────────────────────────────────
@@ -84,6 +49,7 @@ export default function PerformanceMonitor({
 
   // PerformanceObserverの参照を保持（クリーンアップ用）
   const observerRef = useRef<PerformanceObserver | null>(null);
+  const consumedExternalLogIdsRef = useRef<Set<string>>(new Set());
 
   /** 内部ログに新しいエントリを追加する */
   const addLog = useCallback((entry: Omit<PerformanceLogEntry, "id">) => {
@@ -161,10 +127,10 @@ export default function PerformanceMonitor({
         const marker = jankMarkerRef.current;
 
         if (marker) {
-          const progress = 3 + ((now / 14) % 94);
+          const progress = calculateJankMarkerPosition(now);
           marker.style.left = `${progress}%`;
 
-          if (frameGapMs >= JANK_FRAME_THRESHOLD_MS) {
+          if (isJankFrame(frameGapMs)) {
             marker.classList.add(styles.janking);
             if (jankGapRef.current) {
               jankGapRef.current.textContent = `${Math.round(frameGapMs)}ms`;
@@ -221,23 +187,28 @@ export default function PerformanceMonitor({
     };
   }, [isObserving, addLog]);
 
-  // 外部ログの取り込み（externalLogsの差分のみ追加）
-  const lastExternalCountRef = useRef(0);
+  // 外部ログは親側で先頭追加されるため、件数ではなくIDで重複を防ぐ。
   useEffect(() => {
     if (!externalLogs) return;
 
-    // 前回取り込み済みの件数より新しいものだけを追加
-    const newEntries = externalLogs.slice(lastExternalCountRef.current);
+    const newEntries = getNewExternalLogEntries(
+      externalLogs,
+      consumedExternalLogIdsRef.current,
+    );
     if (newEntries.length === 0) return;
 
-    lastExternalCountRef.current = externalLogs.length;
-    setInternalLogs((previous) => [...newEntries.reverse(), ...previous]);
+    for (const logEntry of newEntries) {
+      consumedExternalLogIdsRef.current.add(logEntry.id);
+    }
+    setInternalLogs((previous) => [...newEntries, ...previous]);
   }, [externalLogs]);
 
   /** ログをすべてクリアする */
   const clearLogs = useCallback(() => {
     setInternalLogs([]);
-    lastExternalCountRef.current = externalLogs?.length ?? 0;
+    consumedExternalLogIdsRef.current = new Set(
+      externalLogs?.map((logEntry) => logEntry.id) ?? [],
+    );
   }, [externalLogs]);
 
   /** 監視のON/OFFを切り替える */
