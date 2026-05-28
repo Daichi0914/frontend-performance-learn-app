@@ -1,195 +1,240 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-@import "tailwindcss";
-
+/* ============================================================
+ * デザインシステム: CSS カスタムプロパティ
+ * すべてのコンポーネントはここで定義した変数を参照する
+ * ============================================================ */
 :root {
-  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #4c1d95 100%);
-  --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.15);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --primary: #8b5cf6;
-  --primary-hover: #7c3aed;
-  --success: #10b981;
-  --error: #ef4444;
-  --text-main: #f8fafc;
-  --text-muted: #cbd5e1;
+  /* ── カラーパレット (ダーク・テック系) ── */
+  --color-bg-base:        #020917;   /* 最深部背景 */
+  --color-bg-surface:     #0b1120;   /* カード・パネル */
+  --color-bg-elevated:    #111827;   /* ホバー・選択状態 */
+
+  --color-border-subtle:  rgba(30,  41,  59,  0.6);
+  --color-border-default: rgba(51,  65,  85,  0.8);
+  --color-border-strong:  rgba(100, 116, 139, 0.5);
+
+  --color-text-primary:   #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted:     #475569;
+
+  /* アクセントカラー */
+  --color-cyan-400:   #22d3ee;
+  --color-cyan-300:   #67e8f9;
+  --color-blue-500:   #3b82f6;
+  --color-indigo-400: #818cf8;
+  --color-violet-500: #8b5cf6;
+  --color-emerald-400: #34d399;
+  --color-rose-400:   #fb7185;
+  --color-amber-400:  #fbbf24;
+
+  /* ── グラデーション ── */
+  --gradient-brand:        linear-gradient(135deg, #0b1120 0%, #0f1729 40%, #0c1521 100%);
+  --gradient-glow-cyan:    radial-gradient(ellipse 60% 40% at 50% -10%, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
+  --gradient-glow-indigo:  radial-gradient(ellipse 50% 35% at 80% 110%, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+
+  /* ── グラスモーフィズム ── */
+  --glass-bg:     rgba(11, 17, 32, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  --header-height: 4.5rem;
 }
 
-* {
+/* ── リセット ── */
+*, *::before, *::after {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
 }
 
+/* ── ベースボディ ── */
 body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg-gradient);
-  color: var(--text-main);
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  /* 全体的な光の演出: 上部シアン・下部インディゴのグロー */
+  background-image:
+    var(--gradient-glow-cyan),
+    var(--gradient-glow-indigo);
+  background-attachment: fixed;
+}
+
+/* ── テキスト選択 ── */
+::selection {
+  background-color: rgba(6, 182, 212, 0.2);
+  color: var(--color-cyan-300);
+}
+
+/* ── スクロールバー (全体) ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-default);
+  border-radius: 3px;
 }
 
 .dashboard-container {
-  width: 90%;
-  max-width: 600px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  box-shadow: var(--glass-shadow);
-  padding: 40px;
-  animation: fadeIn 0.5s ease-out;
-  text-align: center;
+  width: min(92%, 640px);
   margin: 10vh auto;
+  padding: 2.5rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 1.25rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  text-align: center;
 }
 
 .title {
   font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-  background: linear-gradient(to right, #a78bfa, #f472b6);
+  font-weight: 800;
+  line-height: 1.15;
+  background: linear-gradient(90deg, var(--color-cyan-400), var(--color-blue-500), var(--color-indigo-400));
   background-clip: text;
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .subtitle {
-  font-size: 1rem;
-  color: var(--text-muted);
-  margin-bottom: 32px;
+  margin-top: 0.75rem;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
 }
 
 .status-grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: 0.875rem;
+  margin: 2rem 0;
 }
 
 .status-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 16px 24px;
-  transition: all 0.3s ease;
-}
-
-.status-card:hover {
-  transform: translateY(-2px);
-  background: rgba(0, 0, 0, 0.3);
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.875rem;
+  background: rgba(2, 9, 23, 0.5);
 }
 
 .status-label {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-weight: 600;
-  font-size: 1.1rem;
+  gap: 0.75rem;
+  color: var(--color-text-primary);
+  font-weight: 700;
 }
 
 .status-indicator {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 9999px;
+  background: var(--color-text-muted);
 }
 
 .status-indicator.ok {
-  background-color: var(--success);
-  box-shadow: 0 0 12px var(--success);
+  background: var(--color-emerald-400);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.5);
 }
 
 .status-indicator.error {
-  background-color: var(--error);
-  box-shadow: 0 0 12px var(--error);
+  background: var(--color-rose-400);
+  box-shadow: 0 0 12px rgba(251, 113, 133, 0.5);
 }
 
 .status-indicator.connecting {
-  background-color: #f59e0b;
-  box-shadow: 0 0 12px #f59e0b;
-  animation: pulse 1.5s infinite;
+  background: var(--color-amber-400);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+  animation: globalPulse 1.5s ease-in-out infinite;
 }
 
 .status-value {
-  font-size: 0.95rem;
-  font-weight: 500;
-  padding: 4px 12px;
-  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .status-value.ok {
-  color: #a7f3d0;
-  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--color-emerald-400);
+  background: rgba(16, 185, 129, 0.12);
 }
 
 .status-value.error {
-  color: #fecaca;
-  background-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .status-value.connecting {
-  color: #fef3c7;
-  background-color: rgba(245, 158, 11, 0.2);
+  color: var(--color-amber-400);
+  background: rgba(245, 158, 11, 0.12);
 }
 
 .reload-button {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 32px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
-  font-size: 1rem;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 1.5rem;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, #0891b2, #2563eb);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.18);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .reload-button:hover {
-  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(6, 182, 212, 0.25);
 }
 
 .reload-button:active {
-  transform: scale(0.96);
+  transform: scale(0.98);
 }
 
 .timestamp {
-  margin-top: 16px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  margin-top: 1rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes pulse {
-  0% { opacity: 0.4; }
-  50% { opacity: 1; }
-  100% { opacity: 0.4; }
+@keyframes globalPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
 @media (max-width: 600px) {
   .dashboard-container {
     width: 100%;
-    height: 100dvh;
+    min-height: 100dvh;
+    margin: 0;
+    border: 0;
     border-radius: 0;
-    border: none;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 24px;
+    padding: 1.5rem;
   }
+
   .title {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import styles from "./PerformanceMonitor.module.scss";
 
 // ─── 型定義 ───────────────────────────────────────────────
 /** パフォーマンスログの種別。UIの色分けとアイコンに直結する */
@@ -37,18 +38,6 @@ function getLogIcon(type: PerformanceLogEntry["type"]): string {
   return iconMap[type];
 }
 
-/** ログ種別に応じたTailwindテキストカラーを返す */
-function getLogTextColor(type: PerformanceLogEntry["type"]): string {
-  const colorMap: Record<PerformanceLogEntry["type"], string> = {
-    "long-task": "text-red-400",
-    "fps-drop": "text-orange-400",
-    "gc-event": "text-purple-400",
-    info: "text-blue-400",
-    warning: "text-yellow-400",
-  };
-  return colorMap[type];
-}
-
 /** タイムスタンプを HH:MM:SS.mmm 形式にフォーマット */
 function formatTimestamp(date: Date): string {
   return date.toLocaleTimeString("ja-JP", {
@@ -67,17 +56,11 @@ function generateLogId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-// ─── FPSカラー判定 ────────────────────────────────────────
-function getFpsColor(fps: number): string {
-  if (fps >= FPS_THRESHOLD_GOOD) return "text-green-400";
-  if (fps >= FPS_THRESHOLD_WARNING) return "text-yellow-400";
-  return "text-red-400";
-}
-
-function getFpsBgColor(fps: number): string {
-  if (fps >= FPS_THRESHOLD_GOOD) return "bg-green-500/20";
-  if (fps >= FPS_THRESHOLD_WARNING) return "bg-yellow-500/20";
-  return "bg-red-500/20";
+// ─── FPSステータス判定 ────────────────────────────────────────
+function getFpsStatus(fps: number): "good" | "warning" | "danger" {
+  if (fps >= FPS_THRESHOLD_GOOD) return "good";
+  if (fps >= FPS_THRESHOLD_WARNING) return "warning";
+  return "danger";
 }
 
 // ─── コンポーネント ───────────────────────────────────────
@@ -187,7 +170,7 @@ export default function PerformanceMonitor({
             addLog({
               timestamp: new Date(),
               type: "fps-drop",
-              message: `FPS低下検知: ${fps}fps — メインスレッドの負荷が高い状態が継続しています`,
+              message: `FPS低下検知: ${fps}fps — メインスレッド of 負荷が高い状態が継続しています`,
               durationMs: elapsed,
             });
             lowFpsStreakRef.current = 0;
@@ -235,37 +218,40 @@ export default function PerformanceMonitor({
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-slate-950/30 backdrop-blur-md shadow-inner text-slate-100 font-sans">
+    <div className={styles.monitorContainer}>
       {/* ── ヘッダー：FPSインジケーター + コントロール ── */}
-      <div className="flex items-center justify-between border-b border-gray-700 px-8 py-5">
-        <div className="flex items-center gap-3.5">
-          <h2 className="text-sm font-bold tracking-wide text-gray-200">
+      <div className={styles.header}>
+        <div className={styles.headerTitleWrapper}>
+          <h2 className={styles.title}>
             📊 Performance Monitor
           </h2>
           <div
-            className={`rounded-md px-2.5 py-1 text-xs font-mono font-bold ${getFpsBgColor(currentFps)} ${getFpsColor(currentFps)}`}
+            className={`${styles.fpsBadge} ${styles[getFpsStatus(currentFps)]}`}
           >
             {currentFps} FPS
           </div>
           <div
-            className={`h-2.5 w-2.5 rounded-full ${isObserving ? "bg-green-400 animate-pulse" : "bg-gray-600"}`}
+            className={`
+              ${styles.statusIndicator}
+              ${isObserving ? styles.observing : ""}
+            `}
             title={isObserving ? "監視中" : "停止中"}
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className={styles.controls}>
           <button
             onClick={toggleObserving}
-            className={`rounded-md px-4 py-2 text-xs font-medium transition-colors cursor-pointer ${
-              isObserving
-                ? "bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30"
-                : "bg-green-600/20 text-green-400 hover:bg-green-600/30"
-            }`}
+            className={`
+              ${styles.btnControl}
+              ${styles.toggleObserving}
+              ${isObserving ? styles.observing : styles.stopped}
+            `}
           >
             {isObserving ? "⏸ 停止" : "▶ 開始"}
           </button>
           <button
             onClick={clearLogs}
-            className="rounded-md bg-gray-700/50 px-4 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-200 cursor-pointer"
+            className={`${styles.btnControl} ${styles.clear}`}
           >
             🗑 クリア
           </button>
@@ -273,55 +259,50 @@ export default function PerformanceMonitor({
       </div>
 
       {/* ── FPS詳細バー ── */}
-      <div className="border-b border-gray-800 px-8 py-4.5">
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-gray-500">FPS:</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-800">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                currentFps >= FPS_THRESHOLD_GOOD
-                  ? "bg-green-500"
-                  : currentFps >= FPS_THRESHOLD_WARNING
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-              }`}
-              style={{ width: `${Math.min((currentFps / 120) * 100, 100)}%` }}
-            />
-          </div>
-          <span className={`text-xs font-mono ${getFpsColor(currentFps)}`}>
-            {currentFps}/60
-          </span>
+      <div className={styles.fpsDetailBar}>
+        <span className={styles.label}>FPS:</span>
+        <div className={styles.progressBg}>
+          <div
+            className={`
+              ${styles.progressBar}
+              ${styles[getFpsStatus(currentFps)]}
+            `}
+            style={{ width: `${Math.min((currentFps / 120) * 100, 100)}%` }}
+          />
         </div>
+        <span className={`${styles.valueText} ${styles[getFpsStatus(currentFps)]}`}>
+          {currentFps}/60
+        </span>
       </div>
 
       {/* ── ログエントリ一覧（DevToolsコンソール風） ── */}
-      <div className="flex-1 overflow-y-auto font-mono text-[11px] md:text-xs min-h-[100px]">
+      <div className={styles.logsContainer}>
         {internalLogs.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-gray-600 font-sans p-8">
+          <div className={styles.noLogs}>
             ログエントリはまだありません
           </div>
         ) : (
-          <div className="divide-y divide-gray-800/50">
+          <div className={styles.logList}>
             {internalLogs.map((logEntry) => (
               <div
                 key={logEntry.id}
-                className="flex items-start gap-4 px-8 py-3.5 hover:bg-gray-800/30 transition-all duration-150"
+                className={styles.logEntry}
               >
                 {/* タイムスタンプ */}
-                <span className="shrink-0 text-gray-600">
+                <span className={styles.timestamp}>
                   {formatTimestamp(logEntry.timestamp)}
                 </span>
                 {/* 種別アイコン */}
-                <span className="shrink-0">
+                <span className={styles.icon}>
                   {getLogIcon(logEntry.type)}
                 </span>
                 {/* メッセージ */}
-                <span className={`flex-1 leading-relaxed ${getLogTextColor(logEntry.type)}`}>
+                <span className={`${styles.message} ${styles[logEntry.type]}`}>
                   {logEntry.message}
                 </span>
                 {/* 処理時間（存在する場合） */}
                 {logEntry.durationMs !== undefined && (
-                  <span className="shrink-0 text-gray-500 font-bold">
+                  <span className={styles.duration}>
                     {logEntry.durationMs}ms
                   </span>
                 )}
@@ -332,7 +313,7 @@ export default function PerformanceMonitor({
       </div>
 
       {/* ── フッター：統計サマリー ── */}
-      <div className="flex items-center justify-between border-t border-gray-800 px-8 py-4.5 text-xs text-gray-500">
+      <div className={styles.footer}>
         <span>
           ログ数: {internalLogs.length} |
           Long Task:{" "}

@@ -1,0 +1,285 @@
+/* ============================================================
+ * page.module.scss — PerformanceSimulatorPage レイアウト
+ * ============================================================ */
+
+/* ── ページコンテナ ── */
+.container {
+  min-height: 100vh;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── ヘッダー ── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--header-height);
+  /* グラスモーフィズム: 背後コンテンツが透けて高級感を演出 */
+  background: rgba(2, 9, 23, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.headerContent {
+  width: 100%;
+  height: 100%;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  @media (min-width: 768px)  { padding: 0 2.5rem; }
+  @media (min-width: 1280px) { padding: 0 4rem; }
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.logoWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  width: 2.75rem;
+}
+
+/* ロゴのグロー: シアン色の発光でブランドカラーを強調 */
+.logoGlow {
+  position: absolute;
+  inset: -2px;
+  background: rgba(6, 182, 212, 0.25);
+  border-radius: 0.875rem;
+  filter: blur(6px);
+  animation: pulseBrightness 3s ease-in-out infinite;
+}
+
+.logo {
+  position: relative;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: 0.875rem;
+  padding: 0.5rem;
+  font-size: 1.25rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  /* シアン→ブルー→インディゴのブランドグラデーション */
+  background: linear-gradient(90deg, #22d3ee 0%, #60a5fa 50%, #818cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* ── メインレイアウト ── */
+.mainLayout {
+  flex: 1;
+  width: 100%;
+  padding: 2rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  @media (min-width: 768px)  { padding: 2.5rem 2.5rem 4rem; }
+  @media (min-width: 1280px) { padding: 2.5rem 4rem 4rem; }
+}
+
+.mainArea {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding-bottom: calc(var(--monitor-height, 320px) + 2.5rem);
+}
+
+/* ── セクションナビゲーション ── */
+.navigation {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 30;
+  padding: 0.75rem;
+  background: rgba(2, 9, 23, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.navContainer {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+
+  @media (min-width: 768px) {
+    justify-content: center;
+  }
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* アクセシビリティ: フォーカスリングを保持しつつスタイルで上書き */
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-cyan-400);
+  }
+
+  /* アクティブ状態: シアンのグロー枠線で選択中を明示 */
+  &.active {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(59, 130, 246, 0.06));
+    color: var(--color-cyan-300);
+    border-color: rgba(6, 182, 212, 0.35);
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* 非アクティブ状態 */
+  &.inactive {
+    color: var(--color-text-secondary);
+    background: transparent;
+    border-color: var(--color-border-subtle);
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--color-border-default);
+    }
+  }
+
+  .navIcon {
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  /* モバイル: ショートラベル表示 */
+  .navLabelFull   { display: none; }
+  .navLabelShort  { display: inline; }
+
+  @media (min-width: 640px) {
+    .navLabelFull  { display: inline; }
+    .navLabelShort { display: none; }
+  }
+}
+
+/* ── シミュレーター表示エリア ── */
+.simulatorArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── フッター ── */
+.footer {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: 2rem 0;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.footerText {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* ── ボトム固定モニター ── */
+.monitorContainer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--monitor-height, 320px);
+  z-index: 50;
+  background: rgba(2, 9, 23, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(6, 182, 212, 0.15);
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.7), 0 -1px 0 rgba(6, 182, 212, 0.08);
+  padding: 0 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+
+  @media (min-width: 768px)  { padding: 0 2.5rem 1.5rem; }
+  @media (min-width: 1280px) { padding: 0 4rem 1.5rem; }
+}
+
+/* リサイズハンドル: ドラッグ可能であることを視覚的に示す */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.5rem;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: rgba(6, 182, 212, 0.08);
+
+    .resizeBar { background: var(--color-cyan-400); }
+  }
+}
+
+.resizeBar {
+  width: 3rem;
+  height: 3px;
+  background: var(--color-border-default);
+  border-radius: 9999px;
+  transition: background-color 0.2s;
+}
+
+.monitorInner {
+  flex: 1;
+  min-height: 0;
+  padding-top: 0.875rem;
+}
+
+/* ── アニメーション ── */
+@keyframes pulseBrightness {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1;   }
+}
