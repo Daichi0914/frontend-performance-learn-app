@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import DataStructureSimulator from "@/components/performance-simulator/DataStructureSimulator";
 import JitSimulator from "@/components/performance-simulator/JitSimulator";
 import GarbageCollectionSimulator from "@/components/performance-simulator/GarbageCollectionSimulator";
@@ -54,19 +54,6 @@ export default function PerformanceSimulatorPage() {
   ]);
   const [isMonitorOpen, setIsMonitorOpen] = useState(false);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsMonitorOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
   /**
    * 各シミュレーターからのLong Task通知を受け取り、
    * PerformanceMonitorのログに追記するためのコールバック
@@ -106,21 +93,13 @@ export default function PerformanceSimulatorPage() {
               </p>
             </div>
           </div>
-        </div>
-      </header>
 
-      {/* メインレイアウトコンテナ */}
-      <div className={styles.mainLayout}>
-        
-        {/* 上側: シミュレータメインエリア */}
-        <main className={styles.mainArea}>
-          
-          {/* セクションナビゲーション - justify-centerを追加して中央寄せ */}
-          <nav className={styles.navigation}>
+          <nav className={styles.headerNavigation} aria-label="Simulator sections">
             <div className={styles.navContainer}>
               {SECTIONS.map((section) => (
                 <button
                   key={section.id}
+                  type="button"
                   onClick={() => setActiveSection(section.id)}
                   className={`${styles.navButton} ${
                     activeSection === section.id ? styles.active : styles.inactive
@@ -134,6 +113,30 @@ export default function PerformanceSimulatorPage() {
             </div>
           </nav>
 
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={`${styles.monitorToggle} ${
+                isMonitorOpen ? styles.active : ""
+              }`}
+              onClick={() => setIsMonitorOpen((current) => !current)}
+              aria-expanded={isMonitorOpen}
+              aria-controls="performance-monitor-panel"
+            >
+              <span className={styles.monitorToggleIcon}>📊</span>
+              <span className={styles.monitorToggleLabel}>Monitor</span>
+              <span className={styles.monitorToggleBadge}>
+                {performanceLogs.length}
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* メインレイアウトコンテナ */}
+      <div className={styles.mainLayout}>
+        {/* 上側: シミュレータメインエリア */}
+        <main className={styles.mainArea}>
           {/* シミュレーター表示エリア */}
           <div className={styles.simulatorArea}>
             {activeSection === "data-structure" && (
@@ -156,22 +159,6 @@ export default function PerformanceSimulatorPage() {
         </main>
       </div>
 
-      {!isMonitorOpen && (
-        <button
-          type="button"
-          className={styles.monitorToggle}
-          onClick={() => setIsMonitorOpen(true)}
-          aria-expanded={isMonitorOpen}
-          aria-controls="performance-monitor-panel"
-        >
-          <span className={styles.monitorToggleIcon}>📊</span>
-          <span className={styles.monitorToggleLabel}>Monitor</span>
-          <span className={styles.monitorToggleBadge}>
-            {performanceLogs.length}
-          </span>
-        </button>
-      )}
-
       <div
         id="performance-monitor-panel"
         className={`${styles.monitorPanel} ${
@@ -186,28 +173,11 @@ export default function PerformanceSimulatorPage() {
               Performance Monitor
             </h2>
           </div>
-          <button
-            type="button"
-            className={styles.monitorCloseButton}
-            onClick={() => setIsMonitorOpen(false)}
-            aria-label="Performance Monitorを閉じる"
-          >
-            ×
-          </button>
         </div>
         <div className={styles.monitorInner}>
           <PerformanceMonitor externalLogs={performanceLogs} />
         </div>
       </div>
-
-      {isMonitorOpen && (
-        <button
-          type="button"
-          className={styles.monitorScrim}
-          onClick={() => setIsMonitorOpen(false)}
-          aria-label="Performance Monitorを閉じる"
-        />
-      )}
     </div>
   );
 }
