@@ -58,6 +58,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  margin-bottom: 2rem;
+  max-width: 46rem;
 }
 
 .header {
@@ -111,6 +113,7 @@
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   line-height: 1.7;
+  max-width: 44rem;
 }
 
 /* ── 解説ボックス ── */
@@ -308,6 +311,16 @@
     }
   }
 
+  .benchmarkActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+
+    .submitButton:last-child {
+      grid-column: 1 / -1;
+    }
+  }
+
   .submitButton {
     width: 100%;
     padding: 0.9375rem 1.5rem;
@@ -326,6 +339,28 @@
       background: linear-gradient(135deg, #06b6d4, #3b82f6);
       box-shadow: 0 8px 24px rgba(6, 182, 212, 0.3);
       transform: translateY(-1px);
+    }
+
+    &.aos {
+      background: linear-gradient(135deg, #be123c, #e11d48);
+      border-color: rgba(244, 63, 94, 0.28);
+      box-shadow: 0 4px 16px rgba(244, 63, 94, 0.16);
+
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, #e11d48, #f43f5e);
+        box-shadow: 0 8px 24px rgba(244, 63, 94, 0.24);
+      }
+    }
+
+    &.soa {
+      background: linear-gradient(135deg, #047857, #059669);
+      border-color: rgba(16, 185, 129, 0.28);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.16);
+
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, #059669, #10b981);
+        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.24);
+      }
     }
 
     &:active:not(:disabled) {

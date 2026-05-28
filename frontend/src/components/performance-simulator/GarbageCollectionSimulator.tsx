@@ -205,29 +205,28 @@ export default function GarbageCollectionSimulator({
       )}
 
       <div className={styles.container}>
+        <div className={styles.introSection}>
+          {/* ヘッダー */}
+          <div className={styles.header}>
+            <div className={styles.iconWrapper}>
+              <span className={styles.icon}>🗑️</span>
+            </div>
+            <div>
+              <h2 className={styles.title}>
+                Garbage Collection
+              </h2>
+              <p className={styles.subtitle}>V8 Memory Simulator</p>
+            </div>
+          </div>
+          <p className={styles.description}>
+            世代別GC（Scavenge GC）と、メモリ割り当ての最適化によるパフォーマンスへの影響を比較します。
+          </p>
+        </div>
+
         {/* 2カラムレイアウトコンテナ */}
         <div className={styles.grid}>
-          
           {/* 左カラム：説明用のコンポーネント */}
           <div className={styles.leftColumn}>
-            <div className={styles.introSection}>
-              {/* ヘッダー */}
-              <div className={styles.header}>
-                <div className={styles.iconWrapper}>
-                  <span className={styles.icon}>🗑️</span>
-                </div>
-                <div>
-                  <h2 className={styles.title}>
-                    Garbage Collection
-                  </h2>
-                  <p className={styles.subtitle}>V8 Memory Simulator</p>
-                </div>
-              </div>
-              <p className={styles.description}>
-                世代別GC（Scavenge GC）と、メモリ割り当ての最適化によるパフォーマンスへの影響を比較します。
-              </p>
-            </div>
-
             {/* 技術解説（開閉なしで常時表示） */}
             <div className={styles.explanationBox}>
               <h3 className={styles.sectionTitle}>

@@ -462,29 +462,28 @@ export default function JitSimulator({ onLongTask }: JitSimulatorProps) {
           ${isShaking ? styles.shaking : ""}
         `}
       >
+        <div className={styles.introSection}>
+          {/* ヘッダー */}
+          <div className={styles.header}>
+            <div className={styles.iconWrapper}>
+              <span className={styles.icon}>⚡</span>
+            </div>
+            <div>
+              <h2 className={styles.title}>
+                JIT &amp; Hidden Class
+              </h2>
+              <p className={styles.subtitle}>JS Engine Simulation</p>
+            </div>
+          </div>
+          <p className={styles.description}>
+            V8エンジンのJITコンパイル（Interpreter -&gt; Baseline -&gt; Top-tier）と、ポリモーフィックなコードによる脱最適化（Deoptimization）をシミュレートします。
+          </p>
+        </div>
+
         {/* 2カラムレイアウトコンテナ */}
         <div className={styles.grid}>
-          
           {/* 左カラム：説明用のコンポーネント */}
           <div className={styles.leftColumn}>
-            <div className={styles.introSection}>
-              {/* ヘッダー */}
-              <div className={styles.header}>
-                <div className={styles.iconWrapper}>
-                  <span className={styles.icon}>⚡</span>
-                </div>
-                <div>
-                  <h2 className={styles.title}>
-                    JIT &amp; Hidden Class
-                  </h2>
-                  <p className={styles.subtitle}>JS Engine Simulation</p>
-                </div>
-              </div>
-              <p className={styles.description}>
-                V8エンジンのJITコンパイル（Interpreter -&gt; Baseline -&gt; Top-tier）と、ポリモーフィックなコードによる脱最適化（Deoptimization）をシミュレートします。
-              </p>
-            </div>
-
             {/* 技術解説（開閉なしで常時表示） */}
             <div className={styles.explanationBox}>
               <h3 className={styles.sectionTitle}>

@@ -11,21 +11,24 @@ interface DataStructureSimulatorProps {
 
 /** ベンチマーク計測結果を格納する型 */
 interface BenchmarkResult {
-  aosDurationMs: number;
-  soaDurationMs: number;
+  aosDurationMs: number | null;
+  soaDurationMs: number | null;
   /** DCE回避用: AoS計算で得られた合計値 */
-  aosSum: number;
+  aosSum: number | null;
   /** DCE回避用: SoA計算で得られた合計値 */
-  soaSum: number;
+  soaSum: number | null;
   /** DCE回避用: AoS計算で得られた平均値 */
-  aosAverage: number;
+  aosAverage: number | null;
   /** DCE回避用: SoA計算で得られた平均値 */
-  soaAverage: number;
+  soaAverage: number | null;
   /** ベンチマーク実行時のデータ件数 */
   itemCount: number;
   /** ベンチマーク実行時のプロパティ数 */
   propertyCount: number;
 }
+
+type BenchmarkTarget = "aos" | "soa" | "both";
+type RunningTarget = BenchmarkTarget | null;
 
 /** AoSの1要素を表現する型（動的プロパティ数に対応） */
 type StructElement = Record<string, number>;
@@ -161,94 +164,127 @@ export default function DataStructureSimulator({
   const [propertyCount, setPropertyCount] = useState<number>(
     SLIDER_CONFIG.propertyCount.default,
   );
-  const [isRunning, setIsRunning] = useState(false);
+  const [runningTarget, setRunningTarget] = useState<RunningTarget>(null);
   const [result, setResult] = useState<BenchmarkResult | null>(null);
 
   /** 連打防止用のフラグ */
   const isRunningRef = useRef(false);
 
-  const runBenchmark = useCallback(() => {
+  const runBenchmark = useCallback((target: BenchmarkTarget) => {
     if (isRunningRef.current) return;
     isRunningRef.current = true;
-    setIsRunning(true);
+    setRunningTarget(target);
 
     // UIスレッドのブロッキングを最小限にするため、requestAnimationFrameで次フレームに委譲
     requestAnimationFrame(() => {
       const propertyNames = generatePropertyNames(propertyCount);
       const targetProperty = propertyNames[0];
 
-      // データ生成（ベンチマーク計測外）
-      const aosData = createArrayOfStructs(itemCount, propertyNames);
-      const soaData = createStructOfArrays(itemCount, propertyNames);
+      let aosResult: ReturnType<typeof benchmarkAoS> | null = null;
+      let soaResult: ReturnType<typeof benchmarkSoA> | null = null;
 
-      // AoSベンチマーク実行
-      const aosResult = benchmarkAoS(aosData, targetProperty);
+      if (target === "aos" || target === "both") {
+        const aosData = createArrayOfStructs(itemCount, propertyNames);
+        aosResult = benchmarkAoS(aosData, targetProperty);
+      }
 
-      // SoAベンチマーク実行
-      const soaResult = benchmarkSoA(soaData, targetProperty);
+      if (target === "soa" || target === "both") {
+        const soaData = createStructOfArrays(itemCount, propertyNames);
+        soaResult = benchmarkSoA(soaData, targetProperty);
+      }
 
-      const benchmarkResult: BenchmarkResult = {
-        aosDurationMs: aosResult.durationMs,
-        soaDurationMs: soaResult.durationMs,
-        aosSum: aosResult.sum,
-        soaSum: soaResult.sum,
-        aosAverage: aosResult.average,
-        soaAverage: soaResult.average,
-        itemCount,
-        propertyCount,
-      };
+      setResult((previousResult) => {
+        const canKeepPrevious =
+          previousResult?.itemCount === itemCount &&
+          previousResult.propertyCount === propertyCount;
 
-      setResult(benchmarkResult);
-      setIsRunning(false);
+        return {
+          aosDurationMs:
+            aosResult?.durationMs ??
+            (canKeepPrevious ? previousResult?.aosDurationMs : null) ??
+            null,
+          soaDurationMs:
+            soaResult?.durationMs ??
+            (canKeepPrevious ? previousResult?.soaDurationMs : null) ??
+            null,
+          aosSum:
+            aosResult?.sum ??
+            (canKeepPrevious ? previousResult?.aosSum : null) ??
+            null,
+          soaSum:
+            soaResult?.sum ??
+            (canKeepPrevious ? previousResult?.soaSum : null) ??
+            null,
+          aosAverage:
+            aosResult?.average ??
+            (canKeepPrevious ? previousResult?.aosAverage : null) ??
+            null,
+          soaAverage:
+            soaResult?.average ??
+            (canKeepPrevious ? previousResult?.soaAverage : null) ??
+            null,
+          itemCount,
+          propertyCount,
+        };
+      });
+      setRunningTarget(null);
       isRunningRef.current = false;
 
       // Long Task通知: 50ms超の処理を外部に報告
-      const totalDuration = aosResult.durationMs + soaResult.durationMs;
+      const totalDuration =
+        (aosResult?.durationMs ?? 0) + (soaResult?.durationMs ?? 0);
       if (totalDuration > LONG_TASK_THRESHOLD_MS) {
-        onLongTask?.(totalDuration, "DataStructure Benchmark (AoS vs SoA)");
+        const taskLabel =
+          target === "both" ? "AoS vs SoA" : target === "aos" ? "AoS" : "SoA";
+        onLongTask?.(totalDuration, `DataStructure Benchmark (${taskLabel})`);
       }
     });
   }, [itemCount, propertyCount, onLongTask]);
 
-  /** SoAがAoSより何%高速かを算出 */
-  const speedupPercentage =
-    result && result.aosDurationMs > 0
-      ? ((result.aosDurationMs - result.soaDurationMs) / result.aosDurationMs) *
-        100
+  const aosDurationMs = result?.aosDurationMs ?? null;
+  const soaDurationMs = result?.soaDurationMs ?? null;
+  const comparison =
+    aosDurationMs !== null && soaDurationMs !== null && aosDurationMs > 0
+      ? {
+          aosDurationMs,
+          soaDurationMs,
+          speedupPercentage:
+            ((aosDurationMs - soaDurationMs) / aosDurationMs) * 100,
+        }
       : null;
 
   /** バーチャートの最大値（2つのうち大きい方を100%とする） */
   const maxDuration = result
-    ? Math.max(result.aosDurationMs, result.soaDurationMs)
+    ? Math.max(result.aosDurationMs ?? 0, result.soaDurationMs ?? 0)
     : 0;
 
   return (
     <div className={styles.container}>
+      <div className={styles.introSection}>
+        {/* ヘッダー */}
+        <div className={styles.header}>
+          <div className={styles.iconWrapper}>
+            <span className={styles.icon}>🧱</span>
+          </div>
+          <div>
+            <h2 className={styles.title}>
+              データ構造 &amp; キャッシュ効率
+            </h2>
+            <p className={styles.subtitle}>
+              AoS vs SoA Simulator
+            </p>
+          </div>
+        </div>
+        <p className={styles.description}>
+          AoS (Array of Structs) と SoA (Struct of Arrays)
+          のメモリ構造の違いが、CPUキャッシュ効率に及ぼす影響を比較します。
+        </p>
+      </div>
+
       {/* 2カラムレイアウトコンテナ */}
       <div className={styles.grid}>
         {/* 左カラム：説明用のコンポーネント */}
         <div className={styles.leftColumn}>
-          <div className={styles.introSection}>
-            {/* ヘッダー */}
-            <div className={styles.header}>
-              <div className={styles.iconWrapper}>
-                <span className={styles.icon}>🧱</span>
-              </div>
-              <div>
-                <h2 className={styles.title}>
-                  データ構造 &amp; キャッシュ効率
-                </h2>
-                <p className={styles.subtitle}>
-                  AoS vs SoA Simulator
-                </p>
-              </div>
-            </div>
-            <p className={styles.description}>
-              AoS (Array of Structs) と SoA (Struct of Arrays)
-              のメモリ構造の違いが、CPUキャッシュ効率に及ぼす影響を比較します。
-            </p>
-          </div>
-
           {/* 技術解説（開閉なしで常時表示） */}
           <div className={styles.explanationBox}>
             <h3 className={styles.sectionTitle}>
@@ -431,39 +467,107 @@ export default function DataStructureSimulator({
             </div>
 
             {/* 実行ボタン */}
-            <button
-              type="button"
-              onClick={runBenchmark}
-              disabled={isRunning}
-              className={styles.submitButton}
-            >
-              {isRunning ? (
-                <span className={styles.loadingWrapper}>
-                  <svg
-                    className={styles.spinner}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className={styles.spinnerTrack}
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className={styles.spinnerFill}
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Benchmarking...
-                </span>
-              ) : (
-                "🚀 ベンチマーク実行"
-              )}
-            </button>
+            <div className={styles.benchmarkActions}>
+              <button
+                type="button"
+                onClick={() => runBenchmark("aos")}
+                disabled={runningTarget !== null}
+                className={`${styles.submitButton} ${styles.aos}`}
+              >
+                {runningTarget === "aos" ? (
+                  <span className={styles.loadingWrapper}>
+                    <svg
+                      className={styles.spinner}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className={styles.spinnerTrack}
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className={styles.spinnerFill}
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    AoS 実行中...
+                  </span>
+                ) : (
+                  "AoS 実行"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => runBenchmark("soa")}
+                disabled={runningTarget !== null}
+                className={`${styles.submitButton} ${styles.soa}`}
+              >
+                {runningTarget === "soa" ? (
+                  <span className={styles.loadingWrapper}>
+                    <svg
+                      className={styles.spinner}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className={styles.spinnerTrack}
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className={styles.spinnerFill}
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    SoA 実行中...
+                  </span>
+                ) : (
+                  "SoA 実行"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => runBenchmark("both")}
+                disabled={runningTarget !== null}
+                className={styles.submitButton}
+              >
+                {runningTarget === "both" ? (
+                  <span className={styles.loadingWrapper}>
+                    <svg
+                      className={styles.spinner}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className={styles.spinnerTrack}
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className={styles.spinnerFill}
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    両方実行中...
+                  </span>
+                ) : (
+                  "AoS / SoA 両方実行"
+                )}
+              </button>
+            </div>
           </div>
 
           {/* 実行結果表示エリア */}
@@ -496,7 +600,9 @@ export default function DataStructureSimulator({
                           AoS (Array of Structs)
                         </span>
                         <span className={`${styles.value} ${styles.aos}`}>
-                          {result.aosDurationMs.toFixed(2)} ms
+                          {result.aosDurationMs !== null
+                            ? `${result.aosDurationMs.toFixed(2)} ms`
+                            : "未実行"}
                         </span>
                       </div>
                       <div className={styles.barContainer}>
@@ -504,7 +610,7 @@ export default function DataStructureSimulator({
                           className={`${styles.bar} ${styles.aos}`}
                           style={{
                             width:
-                              maxDuration > 0
+                              maxDuration > 0 && result.aosDurationMs !== null
                                 ? `${(result.aosDurationMs / maxDuration) * 100}%`
                                 : "0%",
                           }}
@@ -520,7 +626,9 @@ export default function DataStructureSimulator({
                           SoA (Struct of Arrays)
                         </span>
                         <span className={`${styles.value} ${styles.soa}`}>
-                          {result.soaDurationMs.toFixed(2)} ms
+                          {result.soaDurationMs !== null
+                            ? `${result.soaDurationMs.toFixed(2)} ms`
+                            : "未実行"}
                         </span>
                       </div>
                       <div className={styles.barContainer}>
@@ -528,7 +636,7 @@ export default function DataStructureSimulator({
                           className={`${styles.bar} ${styles.soa}`}
                           style={{
                             width:
-                              maxDuration > 0
+                              maxDuration > 0 && result.soaDurationMs !== null
                                 ? `${(result.soaDurationMs / maxDuration) * 100}%`
                                 : "0%",
                           }}
@@ -537,29 +645,33 @@ export default function DataStructureSimulator({
                     </div>
 
                     {/* 速度差テキスト */}
-                    {speedupPercentage !== null && (
+                    {comparison !== null && (
                       <div className={styles.speedupWrapper}>
-                        {speedupPercentage > 0 ? (
+                        {comparison.speedupPercentage > 0 ? (
                           <div className={`${styles.badge} ${styles.success}`}>
                             ⚡ SoA は AoS より{" "}
                             <span className={styles.valueHighlight}>
                               {(
-                                result.aosDurationMs / result.soaDurationMs
+                                comparison.aosDurationMs /
+                                comparison.soaDurationMs
                               ).toFixed(1)}
                               倍
                             </span>{" "}
-                            (約 {speedupPercentage.toFixed(1)}%) 高速
+                            (約 {comparison.speedupPercentage.toFixed(1)}%) 高速
                           </div>
                         ) : (
                           <div className={`${styles.badge} ${styles.warning}`}>
                             ⚠️ AoS が SoA より{" "}
                             <span className={styles.valueHighlight}>
                               {(
-                                result.soaDurationMs / result.aosDurationMs
+                                comparison.soaDurationMs /
+                                comparison.aosDurationMs
                               ).toFixed(1)}
                               倍
                             </span>{" "}
-                            (約 {Math.abs(speedupPercentage).toFixed(1)}%) 高速
+                            (約{" "}
+                            {Math.abs(comparison.speedupPercentage).toFixed(1)}
+                            %) 高速
                           </div>
                         )}
                       </div>
@@ -586,13 +698,17 @@ export default function DataStructureSimulator({
                       <p>
                         Sum:{" "}
                         <span className={styles.val}>
-                          {result.aosSum.toFixed(4)}
+                          {result.aosSum !== null
+                            ? result.aosSum.toFixed(4)
+                            : "未実行"}
                         </span>
                       </p>
                       <p>
                         Avg:{" "}
                         <span className={styles.val}>
-                          {result.aosAverage.toFixed(6)}
+                          {result.aosAverage !== null
+                            ? result.aosAverage.toFixed(6)
+                            : "未実行"}
                         </span>
                       </p>
                     </div>
@@ -603,13 +719,17 @@ export default function DataStructureSimulator({
                       <p>
                         Sum:{" "}
                         <span className={styles.val}>
-                          {result.soaSum.toFixed(4)}
+                          {result.soaSum !== null
+                            ? result.soaSum.toFixed(4)
+                            : "未実行"}
                         </span>
                       </p>
                       <p>
                         Avg:{" "}
                         <span className={styles.val}>
-                          {result.soaAverage.toFixed(6)}
+                          {result.soaAverage !== null
+                            ? result.soaAverage.toFixed(6)
+                            : "未実行"}
                         </span>
                       </p>
                     </div>

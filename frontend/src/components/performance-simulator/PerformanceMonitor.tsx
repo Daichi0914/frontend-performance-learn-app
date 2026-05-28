@@ -24,6 +24,7 @@ const FPS_THRESHOLD_WARNING = 30;
 
 /** FPS低下を連続検知した場合にのみ警告するための閾値 */
 const FPS_DROP_CONSECUTIVE_FRAMES = 5;
+const JANK_FRAME_THRESHOLD_MS = 50;
 
 // ─── ヘルパー ─────────────────────────────────────────────
 /** ログ種別に応じたアイコンを返す */
@@ -74,8 +75,12 @@ export default function PerformanceMonitor({
   // FPSカウント用のref群（再レンダリング不要な計測値はrefで管理）
   const frameCountRef = useRef(0);
   const lastFpsUpdateRef = useRef(0);
+  const lastFrameTimeRef = useRef(0);
   const animationFrameIdRef = useRef<number>(0);
   const lowFpsStreakRef = useRef(0);
+  const jankResetTimeoutRef = useRef<number>(0);
+  const jankMarkerRef = useRef<HTMLDivElement | null>(null);
+  const jankGapRef = useRef<HTMLSpanElement | null>(null);
 
   // PerformanceObserverの参照を保持（クリーンアップ用）
   const observerRef = useRef<PerformanceObserver | null>(null);
@@ -150,6 +155,28 @@ export default function PerformanceMonitor({
 
     const measureFrame = (now: number) => {
       frameCountRef.current++;
+
+      if (lastFrameTimeRef.current !== 0) {
+        const frameGapMs = now - lastFrameTimeRef.current;
+        const marker = jankMarkerRef.current;
+
+        if (marker) {
+          const progress = 3 + ((now / 14) % 94);
+          marker.style.left = `${progress}%`;
+
+          if (frameGapMs >= JANK_FRAME_THRESHOLD_MS) {
+            marker.classList.add(styles.janking);
+            if (jankGapRef.current) {
+              jankGapRef.current.textContent = `${Math.round(frameGapMs)}ms`;
+            }
+            window.clearTimeout(jankResetTimeoutRef.current);
+            jankResetTimeoutRef.current = window.setTimeout(() => {
+              marker.classList.remove(styles.janking);
+            }, 220);
+          }
+        }
+      }
+      lastFrameTimeRef.current = now;
       
       // 初回フレーム実行時に基準時間を設定
       if (lastFpsUpdateRef.current === 0) {
@@ -190,6 +217,7 @@ export default function PerformanceMonitor({
 
     return () => {
       cancelAnimationFrame(animationFrameIdRef.current);
+      window.clearTimeout(jankResetTimeoutRef.current);
     };
   }, [isObserving, addLog]);
 
@@ -222,9 +250,6 @@ export default function PerformanceMonitor({
       {/* ── ヘッダー：FPSインジケーター + コントロール ── */}
       <div className={styles.header}>
         <div className={styles.headerTitleWrapper}>
-          <h2 className={styles.title}>
-            📊 Performance Monitor
-          </h2>
           <div
             className={`${styles.fpsBadge} ${styles[getFpsStatus(currentFps)]}`}
           >
@@ -273,6 +298,18 @@ export default function PerformanceMonitor({
         <span className={`${styles.valueText} ${styles[getFpsStatus(currentFps)]}`}>
           {currentFps}/60
         </span>
+      </div>
+
+      <div className={styles.jankPreview}>
+        <div className={styles.jankPreviewHeader}>
+          <span>Jank Preview</span>
+          <span ref={jankGapRef} className={styles.jankGap}>
+            16ms
+          </span>
+        </div>
+        <div className={styles.jankTrack} aria-hidden="true">
+          <div ref={jankMarkerRef} className={styles.jankMarker} />
+        </div>
       </div>
 
       {/* ── ログエントリ一覧（DevToolsコンソール風） ── */}

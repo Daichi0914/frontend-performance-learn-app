@@ -98,6 +98,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  margin-bottom: 2rem;
+  max-width: 46rem;
 }
 
 /* ── セクションヘッダー: GCはレッド系アクセント ── */
@@ -152,6 +154,7 @@
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   line-height: 1.7;
+  max-width: 44rem;
 }
 
 /* ── 解説ボックス ── */
