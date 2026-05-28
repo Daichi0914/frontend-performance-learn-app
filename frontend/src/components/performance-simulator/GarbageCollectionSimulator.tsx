@@ -69,7 +69,6 @@ export default function GarbageCollectionSimulator({
   const [isGcTriggered, setIsGcTriggered] = useState(false);
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [isOptimized, setIsOptimized] = useState(false);
-  const [showExplanation, setShowExplanation] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // GCアニメーション中のタイマーID（クリーンアップ用）
@@ -209,232 +208,105 @@ export default function GarbageCollectionSimulator({
     <div className="relative">
       {/* ── GCフリーズオーバーレイ ── */}
       {isGcTriggered && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-black/70 backdrop-blur-sm animate-[shake_0.1s_linear_infinite]">
-          <div className="text-center">
-            <div className="mb-2 text-4xl animate-pulse">⚡</div>
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-2xl bg-slate-950/80 backdrop-blur-xs animate-[shake_0.1s_linear_infinite] border border-red-500/20">
+          <div className="text-center p-6 bg-slate-950/90 rounded-2xl border border-red-500/30 shadow-2xl">
+            <div className="mb-2 text-4xl animate-bounce">⚡</div>
             <div className="text-lg font-bold text-red-400 animate-pulse">
               Scavenge GC（マイナーGC）発生！
             </div>
-            <div className="mt-1 text-sm text-red-300/70">
-              メインスレッドが一時停止しています...
+            <div className="mt-1 text-xs text-red-300/70">
+              Stop-The-World: メインスレッドが一時停止しています...
             </div>
           </div>
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
-        {/* ── タイトル ── */}
-        <div className="mb-6">
-          <h2 className="text-lg font-bold text-gray-100">
-            🗑️ ゴミ拾いの代償シミュレーター
-          </h2>
-          <p className="mt-1 text-xs text-gray-500">
-            世代別GC — New Space メモリタンク（{TANK_CAPACITY_MB}MB）
-          </p>
-        </div>
-
-        {/* ── メモリタンクUI ── */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-400">
-              New Space（若者部屋）
-            </span>
-            <span
-              className={`text-sm font-mono font-bold ${getTankTextColor(memoryPercentage)}`}
-            >
-              {memoryUsedMB.toFixed(1)} / {TANK_CAPACITY_MB} MB
-            </span>
-          </div>
-
-          {/* タンク本体: 高さで使用量を表現するプログレスバー */}
-          <div
-            className={`relative h-32 overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50 shadow-lg ${getTankGlow(memoryPercentage)}`}
-          >
-            {/* メモリ使用量インジケーター（下から上へ伸びる） */}
-            <div
-              className={`absolute bottom-0 left-0 right-0 bg-linear-to-r ${getTankColor(memoryPercentage)} transition-all duration-500 ease-out`}
-              style={{ height: `${memoryPercentage}%` }}
-            >
-              {/* 水面の波紋エフェクト */}
-              <div className="absolute inset-x-0 top-0 h-1 bg-white/20" />
-            </div>
-
-            {/* パーセンテージ表示 */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span
-                className={`text-2xl font-bold font-mono ${memoryPercentage > 50 ? "text-white" : getTankTextColor(memoryPercentage)}`}
-              >
-                {Math.round(memoryPercentage)}%
-              </span>
-            </div>
-
-            {/* 目盛り線 */}
-            <div className="absolute inset-0 pointer-events-none">
-              {[25, 50, 75].map((level) => (
-                <div
-                  key={level}
-                  className="absolute left-0 right-0 border-t border-dashed border-gray-600/30"
-                  style={{ bottom: `${level}%` }}
-                >
-                  <span className="absolute right-1 -top-3 text-[10px] text-gray-600">
-                    {level}%
-                  </span>
+      <div className="bg-slate-900/10 backdrop-blur-md border border-slate-800/60 rounded-2xl p-10 md:p-14 shadow-xl shadow-slate-950/20 transition-all duration-300 flex-1 flex flex-col justify-between">
+        {/* 2カラムレイアウトコンテナ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-stretch">
+          
+          {/* 左カラム：説明用のコンポーネント */}
+          <div className="lg:col-span-5 flex flex-col space-y-8">
+            <div className="space-y-6">
+              {/* ヘッダー */}
+              <div className="flex items-center gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.05)]">
+                  <span className="text-xl filter drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]">🗑️</span>
                 </div>
-              ))}
+                <div>
+                  <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">
+                    Garbage Collection
+                  </h2>
+                  <p className="text-xs text-slate-500 font-mono tracking-wider uppercase mt-1 leading-none">V8 Memory Simulator</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                世代別GC（Scavenge GC）と、メモリ割り当ての最適化によるパフォーマンスへの影響を比較します。
+              </p>
             </div>
-          </div>
-        </div>
 
-        {/* ── データ件数スライダー ── */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between">
-            <label
-              htmlFor="data-count-slider"
-              className="text-xs font-medium text-gray-400"
-            >
-              データ件数
-            </label>
-            <span className="text-xs font-mono text-cyan-400">
-              {dataCount.toLocaleString("ja-JP")} 件
-            </span>
-          </div>
-          <input
-            id="data-count-slider"
-            type="range"
-            min={DATA_COUNT_MIN}
-            max={DATA_COUNT_MAX}
-            step={DATA_COUNT_STEP}
-            value={dataCount}
-            onChange={(event) => setDataCount(Number(event.target.value))}
-            className="w-full accent-cyan-500"
-          />
-          <div className="mt-1 flex justify-between text-[10px] text-gray-600">
-            <span>{DATA_COUNT_MIN.toLocaleString()}</span>
-            <span>{DATA_COUNT_MAX.toLocaleString()}</span>
-          </div>
-        </div>
+            {/* 技術解説（開閉なしで常時表示） */}
+            <div className="flex-1 border border-slate-800/80 rounded-2xl bg-slate-950/20 backdrop-blur-sm p-8 space-y-8 text-sm text-slate-300 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-800 font-sans">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-800 pb-2.5">
+                📖 なぜGCが発生するのか？ — 技術解説
+              </h3>
 
-        {/* ── 実行ボタン群 ── */}
-        <div className="mb-6 grid grid-cols-2 gap-3">
-          <button
-            onClick={executeHighOrderChain}
-            disabled={isProcessing || isGcTriggered}
-            className="rounded-lg bg-red-600/20 px-4 py-3 text-sm font-bold text-red-400 transition-all hover:bg-red-600/30 hover:shadow-lg hover:shadow-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="block text-lg mb-1">🔗</span>
-            高階関数チェーン実行
-            <span className="block text-[10px] mt-1 font-normal text-red-400/60">
-              .map().filter().reduce()
-            </span>
-          </button>
-
-          <button
-            onClick={executeOptimizedCode}
-            disabled={isProcessing || isGcTriggered}
-            className="rounded-lg bg-green-600/20 px-4 py-3 text-sm font-bold text-green-400 transition-all hover:bg-green-600/30 hover:shadow-lg hover:shadow-green-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="block text-lg mb-1">⚡</span>
-            最適化コード実行
-            <span className="block text-[10px] mt-1 font-normal text-green-400/60">
-              for ループ + in-place
-            </span>
-          </button>
-        </div>
-
-        {/* ── 実行結果表示 ── */}
-        {lastResult && (
-          <div
-            className={`mb-4 rounded-lg border px-4 py-2 text-sm font-mono ${
-              isOptimized
-                ? "border-green-700/50 bg-green-900/20 text-green-400"
-                : "border-gray-700 bg-gray-800/50 text-gray-300"
-            }`}
-          >
-            {isOptimized && (
-              <span className="mr-2">✅ メモリ安定 —</span>
-            )}
-            {lastResult}
-          </div>
-        )}
-
-        {/* ── 学習解説トグル ── */}
-        <div className="border-t border-gray-800 pt-4">
-          <button
-            onClick={() => setShowExplanation((previous) => !previous)}
-            className="flex w-full items-center justify-between rounded-lg bg-gray-800/50 px-4 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
-          >
-            <span>📖 なぜGCが発生するのか？ — 技術解説</span>
-            <span
-              className={`transition-transform duration-200 ${showExplanation ? "rotate-180" : ""}`}
-            >
-              ▼
-            </span>
-          </button>
-
-          {showExplanation && (
-            <div className="mt-3 space-y-4 rounded-lg border border-gray-800 bg-gray-800/30 px-4 py-4 text-xs leading-relaxed text-gray-300">
               {/* 非効率パターンの解説 */}
-              <div>
-                <h3 className="mb-2 font-bold text-red-400">
-                  ❌ .map().filter().reduce() チェーンの問題
-                </h3>
-                <p className="mb-2">
+              <div className="space-y-3.5">
+                <h4 className="font-bold text-red-400 flex items-center gap-1.5 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> ❌ .map().filter().reduce() チェーンの問題
+                </h4>
+                <p className="text-slate-400 leading-relaxed text-xs">
                   高階関数チェーンは可読性が高い反面、
-                  <strong className="text-white">
-                    各メソッドが新しい配列を生成する
-                  </strong>
+                  <strong className="text-white font-semibold">各メソッドが新しい配列を生成する</strong>
                   という代償があります。
                 </p>
-                <div className="rounded-md bg-gray-900 p-3 font-mono text-red-300/80">
-                  <div className="text-gray-500">
+                <div className="rounded-xl bg-slate-950/80 border border-slate-800/60 p-4 font-mono text-red-300/80 text-xs leading-relaxed">
+                  <div className="text-slate-500">
                     {"//"} 100,000要素の場合:
                   </div>
                   <div>
                     array
                     <span className="text-yellow-400">.map()</span>{" "}
-                    <span className="text-gray-500">
+                    <span className="text-slate-500">
                       {"// "}→ 中間配列1（800KB）
                     </span>
                   </div>
                   <div>
                     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                     <span className="text-yellow-400">.filter()</span>{" "}
-                    <span className="text-gray-500">
+                    <span className="text-slate-500">
                       {"// "}→ 中間配列2（~400KB）
                     </span>
                   </div>
                   <div>
                     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                     <span className="text-yellow-400">.reduce()</span>{" "}
-                    <span className="text-gray-500">
+                    <span className="text-slate-500">
                       {"// "}→ 最終値
                     </span>
                   </div>
                 </div>
-                <p className="mt-2">
+                <p className="text-slate-400 leading-relaxed text-xs mt-3.5">
                   V8のNew Space（若い世代のヒープ、通常1〜8MB）が溢れると
-                  <strong className="text-red-400">
-                    Scavenge GC（マイナーGC）
-                  </strong>
+                  <strong className="text-red-400">Scavenge GC（マイナーGC）</strong>
                   が発動し、メインスレッドが
-                  <strong className="text-white">数ms〜数十ms停止</strong>
+                  <strong className="text-white">数ms〜数十ms停止（Stop-The-World）</strong>
                   します。高頻度に発生するとフレーム落ち（ジャンク）の原因になります。
                 </p>
               </div>
 
               {/* 最適化パターンの解説 */}
-              <div>
-                <h3 className="mb-2 font-bold text-green-400">
-                  ✅ for ループ + in-place操作の利点
-                </h3>
-                <p className="mb-2">
+              <div className="space-y-3.5">
+                <h4 className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> ✅ for ループ + in-place操作の利点
+                </h4>
+                <p className="text-slate-400 leading-relaxed text-xs">
                   単一ループで条件分岐と集計を同時に行えば、
-                  <strong className="text-white">
-                    中間配列が一切生成されない
-                  </strong>
+                  <strong className="text-white font-semibold">中間配列が一切生成されない</strong>
                   ためGC圧力はゼロです。
                 </p>
-                <div className="rounded-md bg-gray-900 p-3 font-mono text-green-300/80">
+                <div className="rounded-xl bg-slate-950/80 border border-slate-800/60 p-4 font-mono text-emerald-300/80 text-xs leading-relaxed">
                   <div>
                     <span className="text-cyan-400">for</span> (
                     <span className="text-cyan-400">let</span> i = 0; i
@@ -452,7 +324,7 @@ export default function GarbageCollectionSimulator({
                   </div>
                   <div>{"}"}</div>
                 </div>
-                <p className="mt-2">
+                <p className="text-slate-400 leading-relaxed text-xs mt-3.5">
                   パフォーマンスクリティカルなパス（アニメーション、大量データ処理）
                   では、可読性よりもGC圧力の低減を優先すべきです。
                   Object Poolパターンとの組み合わせで、ゼロアロケーション処理も実現できます。
@@ -460,11 +332,11 @@ export default function GarbageCollectionSimulator({
               </div>
 
               {/* V8 GCの仕組み */}
-              <div>
-                <h3 className="mb-2 font-bold text-cyan-400">
-                  🧠 V8の世代別GCとは
-                </h3>
-                <ul className="list-disc space-y-1 pl-5 text-gray-400">
+              <div className="space-y-3.5 pb-2">
+                <h4 className="font-bold text-indigo-400 flex items-center gap-1.5 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> 🧠 V8の世代別GCとは
+                </h4>
+                <ul className="list-disc list-inside text-slate-400 space-y-2.5 ml-2 text-xs leading-relaxed">
                   <li>
                     <strong className="text-white">New Space（Young Generation）</strong>
                     : 新しく確保されたオブジェクトが置かれる。容量が小さく、溢れると
@@ -483,13 +355,161 @@ export default function GarbageCollectionSimulator({
                 </ul>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* 右カラム：実行エリア（上）と実行結果表示エリア（下） */}
+          <div className="lg:col-span-7 flex flex-col gap-8">
+            
+            {/* 実行エリア (コントロールパネル) */}
+            <div className="space-y-8 bg-slate-950/40 rounded-2xl p-8 md:p-10 border border-slate-900/80 shadow-inner flex flex-col">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="text-red-400">⚙️</span> Control Panel
+                </h3>
+              </div>
+
+              {/* データ件数スライダー */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="data-count-slider"
+                    className="text-sm font-bold text-slate-400 uppercase tracking-wider"
+                  >
+                    データ件数
+                  </label>
+                  <span className="text-base font-mono text-cyan-400 font-bold">
+                    {dataCount.toLocaleString("ja-JP")} 件
+                  </span>
+                </div>
+                <input
+                  id="data-count-slider"
+                  type="range"
+                  min={DATA_COUNT_MIN}
+                  max={DATA_COUNT_MAX}
+                  step={DATA_COUNT_STEP}
+                  value={dataCount}
+                  onChange={(event) => setDataCount(Number(event.target.value))}
+                  className="w-full accent-cyan-500 cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-slate-600 font-mono">
+                  <span>{DATA_COUNT_MIN.toLocaleString()}</span>
+                  <span>{DATA_COUNT_MAX.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* 実行ボタン群 */}
+              <div className="grid grid-cols-2 gap-6">
+                <button
+                  type="button"
+                  onClick={executeHighOrderChain}
+                  disabled={isProcessing || isGcTriggered}
+                  className="rounded-xl bg-gradient-to-r from-red-600/10 to-red-500/5 hover:from-red-600/20 hover:to-red-500/10 border border-red-500/20 px-6 py-4.5 text-sm font-bold text-red-400 transition-all hover:shadow-lg hover:shadow-red-500/5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95 text-center flex flex-col items-center justify-center"
+                >
+                  <span className="block text-2xl mb-2">🔗</span>
+                  高階関数チェーン実行
+                  <span className="block text-[10px] mt-1.5 font-normal text-red-400/60 font-mono">
+                    .map().filter().reduce()
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={executeOptimizedCode}
+                  disabled={isProcessing || isGcTriggered}
+                  className="rounded-xl bg-gradient-to-r from-emerald-600/10 to-emerald-500/5 hover:from-emerald-600/20 hover:to-emerald-500/10 border border-emerald-500/20 px-6 py-4.5 text-sm font-bold text-emerald-400 transition-all hover:shadow-lg hover:shadow-emerald-500/5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95 text-center flex flex-col items-center justify-center"
+                >
+                  <span className="block text-2xl mb-2">⚡</span>
+                  最適化コード実行
+                  <span className="block text-[10px] mt-1.5 font-normal text-emerald-400/60 font-mono">
+                    for ループ + in-place
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* 実行結果表示エリア (メモリタンク、メトリクス結果) */}
+            <div className="space-y-8 bg-slate-950/40 rounded-2xl p-8 md:p-10 border border-slate-900/80 shadow-inner flex flex-col">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="text-emerald-400">📊</span> Metrics &amp; Heap Tank
+                </h3>
+              </div>
+
+              {/* メモリタンクUI */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                    New Space (若者部屋)
+                  </span>
+                  <span
+                    className={`text-base font-mono font-bold ${getTankTextColor(memoryPercentage)}`}
+                  >
+                    {memoryUsedMB.toFixed(1)} / {TANK_CAPACITY_MB} MB
+                  </span>
+                </div>
+
+                {/* タンク本体 */}
+                <div
+                  className={`relative h-32 overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/60 shadow-lg ${getTankGlow(memoryPercentage)}`}
+                >
+                  {/* メモリ使用量インジケーター（下から上へ伸びる） */}
+                  <div
+                    className={`absolute bottom-0 left-0 right-0 bg-linear-to-r ${getTankColor(memoryPercentage)} transition-all duration-500 ease-out`}
+                    style={{ height: `${memoryPercentage}%` }}
+                  >
+                    {/* 水面の波紋エフェクト */}
+                    <div className="absolute inset-x-0 top-0 h-1.5 bg-white/20" />
+                  </div>
+
+                  {/* パーセンテージ表示 */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span
+                      className={`text-3xl font-black font-mono ${memoryPercentage > 50 ? "text-white" : getTankTextColor(memoryPercentage)}`}
+                    >
+                      {Math.round(memoryPercentage)}%
+                    </span>
+                  </div>
+
+                  {/* 目盛り線 */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {[25, 50, 75].map((level) => (
+                      <div
+                        key={level}
+                        className="absolute left-0 right-0 border-t border-dashed border-slate-800/30"
+                        style={{ bottom: `${level}%` }}
+                      >
+                        <span className="absolute right-2.5 -top-3 text-[10px] text-slate-600 font-mono">
+                          {level}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 実行結果表示 */}
+              {lastResult && (
+                <div
+                  className={`rounded-xl border px-6 py-4 text-xs md:text-sm font-mono transition-all duration-300 leading-relaxed ${
+                    isOptimized
+                      ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+                      : "border-slate-800 bg-slate-950/60 text-slate-300"
+                  }`}
+                >
+                  {isOptimized ? (
+                    <span className="mr-2">✨ メモリ安定（アロケーションフリー） —</span>
+                  ) : (
+                    <span className="mr-2">⚠️ 中間オブジェクト生成量: +{estimateMemoryIncreaseMB(dataCount).toFixed(1)}MB —</span>
+                  )}
+                  {lastResult}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── 振動アニメーション用のインラインkeyframes ──
-           Tailwind v4ではarbitrary animationがサポートされるが、
-           shakeのような複雑なkeyframeはstyleタグで定義する方が明確 */}
+      {/* ── 振動アニメーション用のインラインkeyframes ── */}
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translate(0, 0); }

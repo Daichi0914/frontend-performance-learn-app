@@ -54,38 +54,38 @@ const DEOPT_SHAKE_DURATION_MS = 600;
 const STAGE_DEFINITIONS: readonly StageDefinition[] = [
   {
     id: "interpreter",
-    label: "Interpreter (Bytecode)",
+    label: "Interpreter",
     icon: "🐢",
-    colorClass: "border-gray-500",
-    glowColor: "shadow-gray-500/30",
+    colorClass: "border-slate-800 bg-slate-950/20",
+    glowColor: "shadow-slate-500/5",
     description:
-      "コードを1行ずつ解釈して実行中。最も低速だが、型情報を収集している段階。",
+      "コードを順次実行中。最も低速だが、型情報（Feedback Vector）を収集している段階。",
   },
   {
     id: "baseline",
-    label: "Baseline JIT (Warm)",
+    label: "Baseline JIT",
     icon: "🔥",
-    colorClass: "border-amber-500",
-    glowColor: "shadow-amber-500/40",
+    colorClass: "border-amber-500/40 bg-amber-500/5",
+    glowColor: "shadow-amber-500/10",
     description:
-      "ホットスポット検知。頻繁に実行される関数をベースラインJITコンパイル。中程度の最適化が適用されている。",
+      "頻繁に実行される関数をベースラインJITコンパイル。中程度の最適化が適用されている。",
   },
   {
     id: "top-tier",
-    label: "Top-tier JIT (Optimized)",
+    label: "Top-tier JIT",
     icon: "⚡",
-    colorClass: "border-emerald-500",
-    glowColor: "shadow-emerald-500/40",
+    colorClass: "border-emerald-500/40 bg-emerald-500/5",
+    glowColor: "shadow-emerald-500/15",
     description:
-      "TurboFan級の最適化JITコンパイル完了！投機的最適化（Speculative Optimization）が成功し、型ガード付きの機械語を生成。最速実行中。",
+      "TurboFan級の最適化コンパイル完了！型が固定され、極限まで最適化された機械語を実行中。",
   },
   {
     id: "deoptimized",
-    label: "DEOPTIMIZATION DETECTED",
+    label: "Deoptimization",
     icon: "💥",
-    colorClass: "border-red-500",
-    glowColor: "shadow-red-500/50",
-    description: "",
+    colorClass: "border-rose-500/40 bg-rose-500/5",
+    glowColor: "shadow-rose-500/15",
+    description: "動的型の変化（多態性）を検知し、投機的最適化を解除。インタープリタへ退行。",
   },
 ] as const;
 
@@ -95,142 +95,13 @@ V8エンジンはTop-tier JITコンパイル時に「この関数の引数は常
 しかし、string型の引数が渡されたことで仮定チェック（Guard Check）が失敗。
 エンジンは最適化済みの機械語を破棄し、Interpreterモードに退行しました。
 これがPolymorphicコード（多態的コード）が危険な理由です。
-Hidden Classの遷移が複数発生し、Inline Cache（IC）がMegamorphic状態に陥ると、以降の最適化が困難になります。`;
+Hidden Class of 遷移が複数発生し、Inline Cache（IC）がMegamorphic状態に陥ると、以降の最適化が困難になります。`;
 
 // ============================================================
-// ユーティリティ関数
+// 内部用サブコンポーネント
 // ============================================================
 
-/** 累計実行回数からJITステージを決定する */
-function resolveJitStage(
-  totalExecutions: number,
-  typeMode: TypeMode
-): JitStage {
-  if (totalExecutions < BASELINE_THRESHOLD) return "interpreter";
-  if (totalExecutions < TOPTIER_THRESHOLD) return "baseline";
-  if (typeMode === "polymorphic") return "deoptimized";
-  return "top-tier";
-}
-
-/**
- * 実行時間をシミュレートする
- * Monomorphicでは回数が増えるほど高速化、Polymorphicでは性能が劣化する
- */
-function simulateExecutionTime(
-  batchSize: number,
-  totalExecutions: number,
-  typeMode: TypeMode
-): number {
-  // JITステージに応じたベース時間倍率（低いほど高速）
-  const stageMultiplier =
-    totalExecutions >= TOPTIER_THRESHOLD && typeMode === "monomorphic"
-      ? 0.15
-      : totalExecutions >= BASELINE_THRESHOLD
-        ? 0.5
-        : 1.0;
-
-  // Polymorphic時は型混在による追加オーバーヘッド
-  const polymorphicPenalty = typeMode === "polymorphic" ? 2.5 : 1.0;
-
-  // バッチサイズに対する対数的スケーリング（大量実行でも値が爆発しすぎない）
-  const scaledBatch = Math.log10(batchSize + 1) * 10;
-
-  const baseDuration = scaledBatch * stageMultiplier * polymorphicPenalty;
-
-  // ノイズを加えてリアリティを出す（±15%のランダム変動）
-  const noise = 0.85 + Math.random() * 0.3;
-
-  return Math.round(baseDuration * noise * 100) / 100;
-}
-
-// ============================================================
-// サブコンポーネント
-// ============================================================
-
-/** 実行回数トリガーボタン */
-function ExecutionButton({
-  batchSize,
-  label,
-  gradientClass,
-  onExecute,
-}: {
-  readonly batchSize: number;
-  readonly label: string;
-  readonly gradientClass: string;
-  readonly onExecute: (batchSize: number) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onExecute(batchSize)}
-      className={`
-        flex-1 px-4 py-3 rounded-xl font-bold text-white text-sm
-        ${gradientClass}
-        hover:scale-105 hover:brightness-110
-        active:scale-95
-        transition-all duration-200 ease-out
-        cursor-pointer
-        shadow-lg
-      `}
-    >
-      {label}
-    </button>
-  );
-}
-
-/** Monomorphic / Polymorphic 切り替えトグル */
-function TypeModeToggle({
-  typeMode,
-  onToggle,
-}: {
-  readonly typeMode: TypeMode;
-  readonly onToggle: () => void;
-}) {
-  const isPolymorphic = typeMode === "polymorphic";
-
-  return (
-    <div className="flex items-center gap-4">
-      <span
-        className={`text-sm font-semibold transition-colors duration-300 ${
-          !isPolymorphic ? "text-emerald-400" : "text-gray-500"
-        }`}
-      >
-        単一形（Monomorphic）
-      </span>
-
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={`型モード切替: 現在${isPolymorphic ? "Polymorphic" : "Monomorphic"}`}
-        className={`
-          relative w-14 h-7 rounded-full transition-all duration-300 cursor-pointer
-          ${isPolymorphic
-            ? "bg-red-500 shadow-[0_0_16px_rgba(239,68,68,0.5)]"
-            : "bg-emerald-500 shadow-[0_0_16px_rgba(16,185,129,0.4)]"
-          }
-        `}
-      >
-        <span
-          className={`
-            absolute top-0.5 w-6 h-6 bg-white rounded-full
-            transition-transform duration-300 ease-out shadow-md
-            ${isPolymorphic ? "translate-x-7.5" : "translate-x-0.5"}
-          `}
-        />
-      </button>
-
-      <span
-        className={`text-sm font-semibold transition-colors duration-300 ${
-          isPolymorphic ? "text-red-400" : "text-gray-500"
-        }`}
-      >
-        多角形（Polymorphic）
-      </span>
-    </div>
-  );
-}
-
-/** ステータスカード（4段階の各段階を表示） */
+/** JIT状態を示す4枚のカード */
 function StageCard({
   definition,
   isActive,
@@ -245,11 +116,11 @@ function StageCard({
   return (
     <div
       className={`
-        relative overflow-hidden rounded-xl p-4
-        border-2 transition-all duration-500
-        ${isActive
-          ? `${definition.colorClass} ${definition.glowColor} shadow-lg bg-gray-800/80`
-          : "border-gray-700/30 bg-gray-800/30 opacity-50"
+        relative overflow-hidden rounded-xl border p-5 md:p-6 transition-all duration-300
+        ${
+          isActive
+            ? `${definition.colorClass} ${definition.glowColor} shadow-lg`
+            : "border-slate-900/60 bg-slate-950/10 opacity-30"
         }
         ${isPulsing && isActive ? "animate-pulse" : ""}
       `}
@@ -279,7 +150,7 @@ function StageCard({
             }}
           />
           <div
-            className="absolute w-1 h-1 bg-green-300 rounded-full opacity-40 pointer-events-none"
+            className="absolute w-1.5 h-1.5 bg-green-300 rounded-full opacity-40 pointer-events-none"
             style={{
               top: "60%",
               right: "15%",
@@ -298,14 +169,14 @@ function StageCard({
       )}
 
       <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2.5 mb-2.5">
           <span className="text-2xl">{definition.icon}</span>
-          <span className="text-sm font-bold text-white/90">
+          <span className="text-base font-bold text-white/90">
             {definition.label}
           </span>
         </div>
         {definition.description && (
-          <p className="text-xs text-gray-400 leading-relaxed">
+          <p className="text-sm text-slate-400 leading-relaxed">
             {definition.description}
           </p>
         )}
@@ -314,7 +185,7 @@ function StageCard({
   );
 }
 
-/** 実行時間履歴の折れ線グラフ（CSSベース） */
+/** 実行時間履歴の折れ線グラフ */
 function ExecutionTimeChart({
   records,
 }: {
@@ -322,8 +193,8 @@ function ExecutionTimeChart({
 }) {
   if (records.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
-        実行データなし — ボタンを押して実行してください
+      <div className="flex items-center justify-center h-36 text-slate-600 text-sm">
+        実行データなし — パラメータを入力しボタンを押して実行してください
       </div>
     );
   }
@@ -331,18 +202,16 @@ function ExecutionTimeChart({
   const maxDuration = Math.max(...records.map((r) => r.durationMs), 1);
 
   return (
-    <div className="flex items-end gap-1.5 h-36 px-2">
+    <div className="flex items-end gap-2 h-36 px-2">
       {records.map((record, index) => {
-        // 最小高さ8%を保証し、グラフが見えるようにする
         const heightPercent = Math.max(
           (record.durationMs / maxDuration) * 100,
           8
         );
 
-        // 実行回数に応じてバーの色を変える
         const barColorClass =
           record.durationMs > maxDuration * 0.7
-            ? "from-red-500 to-red-400"
+            ? "from-rose-500 to-red-400"
             : record.durationMs > maxDuration * 0.4
               ? "from-amber-500 to-yellow-400"
               : "from-emerald-500 to-green-400";
@@ -350,9 +219,9 @@ function ExecutionTimeChart({
         return (
           <div
             key={`${record.timestamp}-${index}`}
-            className="flex-1 flex flex-col items-center gap-1"
+            className="flex-1 flex flex-col items-center gap-1.5"
           >
-            <span className="text-[10px] text-gray-400 font-mono">
+            <span className="text-xs text-slate-400 font-mono">
               {record.durationMs.toFixed(1)}ms
             </span>
             <div
@@ -364,7 +233,7 @@ function ExecutionTimeChart({
               style={{ height: `${heightPercent}%` }}
               title={`${record.executionCount}回実行: ${record.durationMs.toFixed(2)}ms`}
             />
-            <span className="text-[9px] text-gray-500 font-mono">
+            <span className="text-xs text-slate-500 font-mono">
               ×{record.executionCount}
             </span>
           </div>
@@ -372,6 +241,140 @@ function ExecutionTimeChart({
       })}
     </div>
   );
+}
+
+/** 型モード切替トグル */
+function TypeModeToggle({
+  typeMode,
+  onToggle,
+}: {
+  readonly typeMode: TypeMode;
+  readonly onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="
+        relative flex items-center justify-between w-full max-w-[280px] p-1.5
+        bg-slate-950 border border-slate-900 rounded-xl cursor-pointer select-none
+      "
+    >
+      <div
+        className={`
+          absolute top-1 bottom-1 w-[calc(50%-6px)] bg-slate-900 border border-slate-800 rounded-lg shadow-md transition-all duration-300
+          ${typeMode === "polymorphic" ? "left-[calc(50%+2px)]" : "left-1"}
+        `}
+      />
+      <span
+        className={`
+          flex-1 text-center text-xs font-bold py-1.5 z-10 transition-colors duration-300
+          ${typeMode === "monomorphic" ? "text-cyan-400" : "text-slate-500"}
+        `}
+      >
+        Monomorphic (単一形)
+      </span>
+      <span
+        className={`
+          flex-1 text-center text-xs font-bold py-1.5 z-10 transition-colors duration-300
+          ${typeMode === "polymorphic" ? "text-rose-400" : "text-slate-500"}
+        `}
+      >
+        Polymorphic (多態性)
+      </span>
+    </button>
+  );
+}
+
+/** 実行ボタン */
+function ExecutionButton({
+  batchSize,
+  label,
+  gradientClass,
+  onExecute,
+}: {
+  readonly batchSize: number;
+  readonly label: string;
+  readonly gradientClass: string;
+  readonly onExecute: (batchSize: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onExecute(batchSize)}
+      className={`
+        py-2 px-3 rounded-lg text-xs font-bold text-white transition-all duration-200
+        active:scale-[0.98] cursor-pointer shadow-lg hover:shadow-cyan-500/10
+        ${gradientClass}
+      `}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ============================================================
+// ヘルパーロジック
+// ============================================================
+
+/** 実行回数と型モードから、現在のJITステージを判別 */
+function resolveJitStage(
+  executions: number,
+  typeMode: TypeMode
+): JitStage {
+  if (typeMode === "polymorphic" && executions >= TOPTIER_THRESHOLD) {
+    return "deoptimized";
+  }
+  if (executions >= TOPTIER_THRESHOLD) {
+    return "top-tier";
+  }
+  if (executions >= BASELINE_THRESHOLD) {
+    return "baseline";
+  }
+  return "interpreter";
+}
+
+/**
+ * JIT最適化レベルに応じた疑似実行時間をミリ秒でシミュレーションする
+ * V8の実際の挙動をモデル化し、JITコンパイルの効果と脱最適化ペナルティを表現する
+ */
+function simulateExecutionTime(
+  batchSize: number,
+  currentExecutions: number,
+  typeMode: TypeMode
+): number {
+  // 1バッチ（単一アロケーション/計算処理）あたりの基礎コスト
+  const baseMicroSeconds = 80;
+
+  // JITステージに応じたスケーリング係数を算出
+  let speedFactor = 1.0;
+  const stage = resolveJitStage(currentExecutions, typeMode);
+
+  switch (stage) {
+    case "interpreter":
+      // インタプリタ実行：最適化なし
+      speedFactor = 1.0;
+      break;
+    case "baseline":
+      // ベースラインJIT：機械語実行により約4倍高速化
+      speedFactor = 0.25;
+      break;
+    case "top-tier":
+      // トップティアJIT：高度な型最適化により約20倍高速化
+      speedFactor = 0.05;
+      break;
+    case "deoptimized":
+      // 脱最適化ペナルティ：仮定チェックの失敗とインタープリタへの退行により、
+      // 通常のインタープリタよりもさらに遅くなる（約1.5倍のオーバーヘッド）
+      speedFactor = 1.5;
+      break;
+  }
+
+  // 実行時間（ミリ秒） = バッチサイズ × 基礎コスト × 最適化係数 + 軽微なノイズ
+  const totalMicro = batchSize * baseMicroSeconds * speedFactor;
+  const jitter = (Math.random() - 0.5) * (totalMicro * 0.1); // ±10%のブレ
+
+  return Math.max((totalMicro + jitter) / 1000, 0.01);
 }
 
 // ============================================================
@@ -398,41 +401,33 @@ export default function JitSimulator({ onLongTask }: JitSimulatorProps) {
   // --- 派生状態 ---
   const currentStage = resolveJitStage(totalExecutions, typeMode);
 
-  // Top-tier状態の追跡（Polymorphicトグル時の脱最適化検知に使用）
+  // Top-tierに到達した履歴があるかを監視
   useEffect(() => {
-    wasTopTierRef.current = currentStage === "top-tier";
+    if (currentStage === "top-tier") {
+      wasTopTierRef.current = true;
+    }
   }, [currentStage]);
 
-  // タイマーのクリーンアップ
-  useEffect(() => {
-    return () => {
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
-    };
-  }, []);
-
-  /** 脱最適化演出の発火 */
+  /** 脱最適化イベントのトリガー */
   const triggerDeoptimization = useCallback(() => {
-    // 赤フラッシュ表示
+    setShowDeoptExplanation(true);
     setShowDeoptFlash(true);
     setIsShaking(true);
-    setShowDeoptExplanation(true);
 
-    // フラッシュを時間経過で消す
+    // フラッシュの点滅時間を管理
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => {
       setShowDeoptFlash(false);
     }, DEOPT_FLASH_DURATION_MS);
 
-    // 振動を時間経過で止める
+    // 振動の終了時間を管理
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
     shakeTimerRef.current = setTimeout(() => {
       setIsShaking(false);
     }, DEOPT_SHAKE_DURATION_MS);
-
-    // Interpreterへ叩き落とす
-    setTotalExecutions(0);
   }, []);
 
-  /** 型モードトグルのハンドラ */
+  /** 型モードの切り替えハンドラ */
   const handleTypeModeToggle = useCallback(() => {
     setTypeMode((prevMode) => {
       const nextMode =
@@ -505,7 +500,7 @@ export default function JitSimulator({ onLongTask }: JitSimulatorProps) {
       {/* 脱最適化時の赤フラッシュオーバーレイ */}
       {showDeoptFlash && (
         <div
-          className="fixed inset-0 z-50 pointer-events-none bg-red-500/30"
+          className="fixed inset-0 z-50 pointer-events-none bg-red-500/20"
           style={{
             animation: `deopt-flash ${DEOPT_FLASH_DURATION_MS}ms ease-out forwards`,
           }}
@@ -514,138 +509,202 @@ export default function JitSimulator({ onLongTask }: JitSimulatorProps) {
 
       <div
         className={`
-          bg-gray-900/80 backdrop-blur-sm border border-gray-700/50
-          rounded-2xl p-6 space-y-6
+          bg-slate-900/10 backdrop-blur-md border border-slate-800/60
+          rounded-2xl p-10 md:p-14 shadow-xl shadow-slate-950/20 transition-all duration-300 flex-1 flex flex-col justify-between
           ${isShaking ? "animate-[shake_0.6s_ease-in-out]" : ""}
         `}
       >
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2">
-            <span>⚙️</span>
-            JSエンジン機嫌シミュレーター
-          </h2>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="
-              px-4 py-2 text-sm font-semibold text-gray-300
-              bg-gray-800 hover:bg-gray-700
-              border border-gray-600 rounded-lg
-              transition-all duration-200
-              hover:text-white cursor-pointer
-              active:scale-95
-            "
-          >
-            🔄 エンジンリセット
-          </button>
-        </div>
+        {/* 2カラムレイアウトコンテナ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-stretch">
+          
+          {/* 左カラム：説明用のコンポーネント */}
+          <div className="lg:col-span-5 flex flex-col space-y-8">
+            <div className="space-y-6">
+              {/* ヘッダー */}
+              <div className="flex items-center gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.05)]">
+                  <span className="text-xl filter drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">⚡</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
+                    JIT &amp; Hidden Class
+                  </h2>
+                  <p className="text-xs text-slate-500 font-mono tracking-wider uppercase mt-1 leading-none">JS Engine Simulation</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                V8エンジンのJITコンパイル（Interpreter -&gt; Baseline -&gt; Top-tier）と、ポリモーフィックなコードによる脱最適化（Deoptimization）をシミュレートします。
+              </p>
+            </div>
 
-        {/* 累計実行回数カウンター */}
-        <div className="text-center">
-          <div className="text-xs text-gray-400 mb-1 tracking-wider uppercase">
-            累計実行回数
+            {/* 技術解説（開閉なしで常時表示） */}
+            <div className="flex-1 border border-slate-800/80 rounded-2xl bg-slate-950/20 backdrop-blur-sm p-8 space-y-8 text-sm text-slate-300 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-800 font-sans">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-800 pb-2.5">
+                📖 JITコンパイルと脱最適化のメカニズム
+              </h3>
+              
+              <div className="space-y-4">
+                <h4 className="font-bold text-cyan-400 flex items-center gap-1.5 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> JITエンジンの3つの実行ステージ
+                </h4>
+                <p className="text-slate-400 leading-relaxed text-xs">
+                  現代のJavaScriptエンジン（V8など）は、コードの実行頻度（ホットスポット）に応じて段階的に最適化を行います。
+                </p>
+                <ul className="list-disc list-inside text-slate-400 space-y-2.5 ml-2.5 text-xs leading-relaxed">
+                  <li><span className="text-cyan-300 font-bold">Interpreter</span> — 起動時に実行時の型情報を記録します。</li>
+                  <li><span className="text-amber-400 font-bold">Baseline JIT</span> — 頻繁に呼出される関数を機械語にし、高速化します。</li>
+                  <li><span className="text-emerald-400 font-bold">Top-tier JIT</span> — 非常に多く呼ばれる関数に対し型を仮定して、極めて最適化された機械語にコンパイルします。</li>
+                </ul>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-bold text-rose-400 flex items-center gap-1.5 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-400" /> なぜ脱最適化が発生するのか？
+                </h4>
+                <p className="text-slate-400 leading-relaxed text-xs">
+                  JavaScriptは動的型付け言語であるため、Top-tier JITは仮定チェックを埋め込みます。もし「常にnumber型」と仮定された関数に突然string型が渡されると仮定チェックが失敗し、最適化機械語を即座に破棄してインタープリタへロールバック（Deopt）します。
+                </p>
+              </div>
+
+              <div className="space-y-4 pb-2">
+                <h4 className="font-bold text-indigo-400 flex items-center gap-1.5 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> 🎮 実際の応用: 静的最適化へのヒント
+                </h4>
+                <ul className="list-disc list-inside text-slate-400 space-y-2.5 ml-2.5 text-xs leading-relaxed">
+                  <li><span className="text-indigo-300 font-bold">単一形（Monomorphic）の維持</span> — 関数の引数の型を一定に保つ。</li>
+                  <li><span className="text-indigo-300 font-bold">隠しクラス（Hidden Class）の共有</span> — 同一のプロパティ構造のオブジェクトを再利用する。</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div
-            className={`
-            text-5xl font-black font-mono tracking-tight
-            transition-colors duration-500
-            ${currentStage === "top-tier"
-                ? "text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)]"
-                : currentStage === "baseline"
-                  ? "text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.4)]"
-                  : currentStage === "deoptimized"
-                    ? "text-red-400 drop-shadow-[0_0_16px_rgba(239,68,68,0.5)]"
-                    : "text-gray-300"
-              }
-          `}
-          >
-            {totalExecutions.toLocaleString()}
+
+          {/* 右カラム：実行エリア（上）と実行結果表示エリア（下） */}
+          <div className="lg:col-span-7 flex flex-col gap-8">
+            
+            {/* 実行エリア (コントロールパネル) */}
+            <div className="space-y-8 bg-slate-950/40 rounded-2xl p-8 md:p-10 border border-slate-900/80 shadow-inner flex flex-col">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="text-amber-400">⚙️</span> Control Panel
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-3.5 py-2 text-xs font-bold tracking-wider text-slate-400 hover:text-slate-200 bg-slate-950/60 hover:bg-slate-900 border border-slate-800/80 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 animate-none"
+                >
+                  🔄 RESET
+                </button>
+              </div>
+
+              {/* 累計実行回数メーター */}
+              <div className="py-6 border-b border-slate-900/60 text-center space-y-3">
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                  累計実行回数
+                </div>
+                <div
+                  className={`
+                    text-5xl font-black font-mono tracking-tight transition-all duration-500
+                    ${currentStage === "top-tier"
+                      ? "text-emerald-400 drop-shadow-[0_0_16px_rgba(52,211,153,0.4)]"
+                      : currentStage === "baseline"
+                        ? "text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.3)]"
+                        : currentStage === "deoptimized"
+                          ? "text-rose-500 drop-shadow-[0_0_16px_rgba(244,63,94,0.4)]"
+                          : "text-slate-300"
+                    }
+                  `}
+                >
+                  {totalExecutions.toLocaleString()}
+                </div>
+                <div className="text-xs font-semibold text-slate-400 font-mono mt-2">
+                  {currentStage === "interpreter" && "🐢 Interpreter: 型情報を収集中..."}
+                  {currentStage === "baseline" &&
+                    `🔥 Baseline JIT (Warm): 最適化まであと ${(TOPTIER_THRESHOLD - totalExecutions).toLocaleString()} 回`}
+                  {currentStage === "top-tier" && "⚡ Top-tier JIT (Optimized): 最高速稼働中"}
+                  {currentStage === "deoptimized" && "💥 Deoptimization: 最適化解除"}
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* 型モード切替トグル */}
+                <div className="py-2 flex justify-center">
+                  <TypeModeToggle
+                    typeMode={typeMode}
+                    onToggle={handleTypeModeToggle}
+                  />
+                </div>
+
+                {/* 実行ボタン群 */}
+                <div className="grid grid-cols-3 gap-3.5">
+                  <ExecutionButton
+                    batchSize={1}
+                    label="+1回"
+                    gradientClass="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border border-blue-400/20 py-3 text-sm"
+                    onExecute={handleExecute}
+                  />
+                  <ExecutionButton
+                    batchSize={100}
+                    label="+100回"
+                    gradientClass="bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 border border-purple-400/20 py-3 text-sm"
+                    onExecute={handleExecute}
+                  />
+                  <ExecutionButton
+                    batchSize={10000}
+                    label="+10,000回"
+                    gradientClass="bg-gradient-to-r from-fuchsia-600 to-pink-500 hover:from-fuchsia-500 hover:to-pink-400 border border-pink-400/20 py-3 text-sm"
+                    onExecute={handleExecute}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 実行結果表示エリア (ステータス遷移と履歴グラフ) */}
+            <div className="flex-1 flex flex-col gap-8 min-h-[300px]">
+              {/* JITステータスカード（4段階） */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+                {STAGE_DEFINITIONS.map((definition) => (
+                  <StageCard
+                    key={definition.id}
+                    definition={definition}
+                    isActive={currentStage === definition.id}
+                    isPulsing={definition.id === "baseline"}
+                    isOptimized={definition.id === "top-tier"}
+                  />
+                ))}
+              </div>
+
+              {/* 脱最適化の技術解説 */}
+              {showDeoptExplanation && (
+                <div
+                  className="
+                    bg-rose-950/10 border border-rose-500/20 backdrop-blur-xs
+                    rounded-2xl p-8 space-y-5
+                    animate-[fadeSlideIn_0.4s_ease-out]
+                  "
+                >
+                  <h3 className="text-rose-400 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <span>💥</span> Deoptimization Alert
+                  </h3>
+                  <p className="text-rose-300 text-xs leading-relaxed whitespace-pre-line font-mono">
+                    {DEOPT_EXPLANATION}
+                  </p>
+                </div>
+              )}
+
+              {/* 実行時間グラフ */}
+              <div className="bg-slate-950/20 rounded-2xl p-8 md:p-10 flex-1 flex flex-col justify-center min-h-[200px] space-y-6">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                  <span>📊</span> Execution History (ms)
+                </h3>
+                <div className="bg-slate-950/30 rounded-xl p-8 md:p-10 border border-slate-900/60 flex-1 flex items-center justify-center min-h-[140px]">
+                  <ExecutionTimeChart records={executionHistory} />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {currentStage === "interpreter" && "型情報を収集中..."}
-            {currentStage === "baseline" &&
-              `あと ${(TOPTIER_THRESHOLD - totalExecutions).toLocaleString()} 回で最適化到達`}
-            {currentStage === "top-tier" && "🔥🔥🔥 最高速で稼働中"}
-            {currentStage === "deoptimized" && "💥 最適化が解除されました"}
-          </div>
         </div>
 
-        {/* 型モード切替トグル */}
-        <div className="flex justify-center">
-          <TypeModeToggle
-            typeMode={typeMode}
-            onToggle={handleTypeModeToggle}
-          />
-        </div>
-
-        {/* 実行ボタン群 */}
-        <div className="flex gap-3">
-          <ExecutionButton
-            batchSize={1}
-            label="▶ 1回実行"
-            gradientClass="bg-gradient-to-r from-blue-600 to-blue-500"
-            onExecute={handleExecute}
-          />
-          <ExecutionButton
-            batchSize={100}
-            label="⏩ 100回実行"
-            gradientClass="bg-gradient-to-r from-violet-600 to-purple-500"
-            onExecute={handleExecute}
-          />
-          <ExecutionButton
-            batchSize={10000}
-            label="🚀 10,000回実行"
-            gradientClass="bg-gradient-to-r from-fuchsia-600 to-pink-500"
-            onExecute={handleExecute}
-          />
-        </div>
-
-        {/* JITステータスカード（4段階） */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {STAGE_DEFINITIONS.map((definition) => (
-            <StageCard
-              key={definition.id}
-              definition={definition}
-              isActive={currentStage === definition.id}
-              isPulsing={definition.id === "baseline"}
-              isOptimized={definition.id === "top-tier"}
-            />
-          ))}
-        </div>
-
-        {/* 脱最適化の技術解説 */}
-        {showDeoptExplanation && (
-          <div
-            className="
-              bg-red-950/60 border-2 border-red-500/50
-              rounded-xl p-5 space-y-2
-              animate-[fadeSlideIn_0.4s_ease-out]
-            "
-          >
-            <h3 className="text-red-400 font-bold text-sm flex items-center gap-2">
-              <span>⚠️</span>
-              脱最適化の技術的解説
-            </h3>
-            <p className="text-red-300/90 text-xs leading-relaxed whitespace-pre-line">
-              {DEOPT_EXPLANATION}
-            </p>
-          </div>
-        )}
-
-        {/* 実行時間グラフ */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-            <span>📊</span>
-            実行時間履歴（直近{MAX_HISTORY_LENGTH}回）
-          </h3>
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/30">
-            <ExecutionTimeChart records={executionHistory} />
-          </div>
-        </div>
-
-        {/* CSSキーフレーム定義 — Tailwind v4ではグローバルCSSに置くのが理想だが、
-            コンポーネントの自己完結性を優先しスコープ内で定義 */}
+        {/* CSSキーフレーム定義 */}
         <style>{`
           @keyframes shimmer {
             0%, 100% { background-position: 0% 50%; }

@@ -235,27 +235,27 @@ export default function PerformanceMonitor({
   }, []);
 
   return (
-    <div className="rounded-xl border border-gray-700 bg-gray-900 shadow-2xl">
+    <div className="h-full flex flex-col bg-slate-950/30 backdrop-blur-md shadow-inner text-slate-100 font-sans">
       {/* ── ヘッダー：FPSインジケーター + コントロール ── */}
-      <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between border-b border-gray-700 px-8 py-5">
+        <div className="flex items-center gap-3.5">
           <h2 className="text-sm font-bold tracking-wide text-gray-200">
             📊 Performance Monitor
           </h2>
           <div
-            className={`rounded-md px-2 py-0.5 text-xs font-mono font-bold ${getFpsBgColor(currentFps)} ${getFpsColor(currentFps)}`}
+            className={`rounded-md px-2.5 py-1 text-xs font-mono font-bold ${getFpsBgColor(currentFps)} ${getFpsColor(currentFps)}`}
           >
             {currentFps} FPS
           </div>
           <div
-            className={`h-2 w-2 rounded-full ${isObserving ? "bg-green-400 animate-pulse" : "bg-gray-600"}`}
+            className={`h-2.5 w-2.5 rounded-full ${isObserving ? "bg-green-400 animate-pulse" : "bg-gray-600"}`}
             title={isObserving ? "監視中" : "停止中"}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={toggleObserving}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-md px-4 py-2 text-xs font-medium transition-colors cursor-pointer ${
               isObserving
                 ? "bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30"
                 : "bg-green-600/20 text-green-400 hover:bg-green-600/30"
@@ -265,7 +265,7 @@ export default function PerformanceMonitor({
           </button>
           <button
             onClick={clearLogs}
-            className="rounded-md bg-gray-700/50 px-3 py-1 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-200"
+            className="rounded-md bg-gray-700/50 px-4 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-200 cursor-pointer"
           >
             🗑 クリア
           </button>
@@ -273,10 +273,10 @@ export default function PerformanceMonitor({
       </div>
 
       {/* ── FPS詳細バー ── */}
-      <div className="border-b border-gray-800 px-4 py-2">
-        <div className="flex items-center gap-2">
+      <div className="border-b border-gray-800 px-8 py-4.5">
+        <div className="flex items-center gap-4">
           <span className="text-xs text-gray-500">FPS:</span>
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-800">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-800">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
                 currentFps >= FPS_THRESHOLD_GOOD
@@ -295,9 +295,9 @@ export default function PerformanceMonitor({
       </div>
 
       {/* ── ログエントリ一覧（DevToolsコンソール風） ── */}
-      <div className="h-64 overflow-y-auto font-mono text-xs">
+      <div className="flex-1 overflow-y-auto font-mono text-[11px] md:text-xs min-h-[100px]">
         {internalLogs.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-gray-600">
+          <div className="flex h-full items-center justify-center text-gray-600 font-sans p-8">
             ログエントリはまだありません
           </div>
         ) : (
@@ -305,7 +305,7 @@ export default function PerformanceMonitor({
             {internalLogs.map((logEntry) => (
               <div
                 key={logEntry.id}
-                className="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-800/30"
+                className="flex items-start gap-4 px-8 py-3.5 hover:bg-gray-800/30 transition-all duration-150"
               >
                 {/* タイムスタンプ */}
                 <span className="shrink-0 text-gray-600">
@@ -316,12 +316,12 @@ export default function PerformanceMonitor({
                   {getLogIcon(logEntry.type)}
                 </span>
                 {/* メッセージ */}
-                <span className={`flex-1 ${getLogTextColor(logEntry.type)}`}>
+                <span className={`flex-1 leading-relaxed ${getLogTextColor(logEntry.type)}`}>
                   {logEntry.message}
                 </span>
                 {/* 処理時間（存在する場合） */}
                 {logEntry.durationMs !== undefined && (
-                  <span className="shrink-0 text-gray-500">
+                  <span className="shrink-0 text-gray-500 font-bold">
                     {logEntry.durationMs}ms
                   </span>
                 )}
@@ -332,7 +332,7 @@ export default function PerformanceMonitor({
       </div>
 
       {/* ── フッター：統計サマリー ── */}
-      <div className="flex items-center justify-between border-t border-gray-800 px-4 py-2 text-xs text-gray-500">
+      <div className="flex items-center justify-between border-t border-gray-800 px-8 py-4.5 text-xs text-gray-500">
         <span>
           ログ数: {internalLogs.length} |
           Long Task:{" "}

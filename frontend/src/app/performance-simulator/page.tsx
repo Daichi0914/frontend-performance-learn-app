@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import DataStructureSimulator from "@/components/performance-simulator/DataStructureSimulator";
 import JitSimulator from "@/components/performance-simulator/JitSimulator";
 import GarbageCollectionSimulator from "@/components/performance-simulator/GarbageCollectionSimulator";
@@ -51,7 +51,44 @@ export default function PerformanceSimulatorPage() {
         "パフォーマンスモニター起動。Long Task（50ms以上）とFPS低下をリアルタイムで監視中...",
     },
   ]);
-  const [isMonitorExpanded, setIsMonitorExpanded] = useState(true);
+  const [monitorHeight, setMonitorHeight] = useState(320);
+
+  /** 連打・リサイズドラッグ管理用のref */
+  const isResizingRef = useRef(false);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const newHeight = window.innerHeight - e.clientY;
+      const minHeight = 120;
+      const maxHeight = window.innerHeight * 0.8;
+      if (newHeight >= minHeight && newHeight <= maxHeight) {
+        setMonitorHeight(newHeight);
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizingRef.current) {
+        isResizingRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   /**
    * 各シミュレーターからのLong Task通知を受け取り、
@@ -72,101 +109,105 @@ export default function PerformanceSimulatorPage() {
   );
 
   return (
-    <div className="min-h-screen bg-linear-to-r from-gray-950 via-slate-900 to-gray-950 text-gray-100 font-[Inter,sans-serif]">
-      {/* ヘッダー: アプリタイトルとサイバー感のあるデザイン */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-gray-950/70 border-b border-cyan-500/20">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col selection:bg-cyan-500/20 selection:text-cyan-300">
+      {/* ヘッダー: 固定高さで管理を容易に */}
+      <header className="sticky top-0 z-40 h-16 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md">
+        <div className="w-full h-full mx-auto px-6 md:px-12 lg:px-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              {/* サイバーアイコンのパルスエフェクト */}
-              <div className="absolute inset-0 bg-cyan-500/30 rounded-lg blur-md animate-pulse" />
-              <div className="relative bg-gray-800 border border-cyan-500/50 rounded-lg p-2 text-xl">
+            <div className="relative flex items-center justify-center h-10 w-10">
+              <div className="absolute inset-0 bg-cyan-500/20 rounded-xl blur-sm animate-pulse" />
+              <div className="relative bg-slate-900 border border-cyan-500/30 rounded-xl p-2 text-lg">
                 🔬
               </div>
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-linear-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent leading-tight">
+              <h1 className="text-lg font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent leading-none">
                 Frontend Performance Lab
               </h1>
-              <p className="text-xs text-gray-500 font-mono">
+              <p className="text-xs text-slate-500 font-mono mt-1.5 leading-none">
                 V8 Engine • CPU Cache • GC • Rendering
               </p>
             </div>
           </div>
-
-          {/* モニター展開/縮小トグル */}
-          <button
-            onClick={() => setIsMonitorExpanded((previous) => !previous)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50 hover:border-cyan-500/30 transition-colors text-sm cursor-pointer"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-            </span>
-            <span className="text-gray-400">Monitor</span>
-            <span className="text-gray-600">
-              {isMonitorExpanded ? "▼" : "▲"}
-            </span>
-          </button>
         </div>
       </header>
 
-      {/* セクションナビゲーション: タブ切り替え */}
-      <nav className="sticky top-14.25 z-30 backdrop-blur-lg bg-gray-950/50 border-b border-gray-800/50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
-            {SECTIONS.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                  whitespace-nowrap transition-all duration-300 cursor-pointer
-                  ${
-                    activeSection === section.id
-                      ? "bg-linear-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/10"
-                      : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/40 border border-transparent"
-                  }
-                `}
-              >
-                <span>{section.icon}</span>
-                <span className="hidden sm:inline">{section.label}</span>
-                <span className="sm:hidden">{section.shortLabel}</span>
-              </button>
-            ))}
+      {/* メインレイアウトコンテナ */}
+      <div className="flex-1 w-full mx-auto px-6 md:px-12 lg:px-16 pt-12 pb-16 flex flex-col gap-16 relative self-stretch">
+        
+        {/* 上側: シミュレータメインエリア - fixedのモニターに被らないよう、動的に下部余白を確保 */}
+        <main 
+          style={{ paddingBottom: `${monitorHeight + 40}px` }}
+          className="w-full flex flex-col space-y-12"
+        >
+          
+          {/* セクションナビゲーション - justify-centerを追加して中央寄せ */}
+          <nav className="sticky top-16 z-30 -mx-4 px-4 md:mx-0 md:px-0 py-4 bg-slate-950/80 backdrop-blur-md border-b border-slate-900 mb-4">
+            <div className="flex gap-4 overflow-x-auto py-1.5 scrollbar-none justify-start md:justify-center">
+              {SECTIONS.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`
+                    flex items-center gap-2.5 px-4.5 py-3 rounded-xl text-sm font-semibold
+                    whitespace-nowrap transition-all duration-200 cursor-pointer border
+                    ${
+                      activeSection === section.id
+                        ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/30 shadow-lg shadow-cyan-500/5"
+                        : "text-slate-400 border-slate-900 bg-slate-950 hover:text-slate-200 hover:border-slate-800"
+                    }
+                  `}
+                >
+                  <span>{section.icon}</span>
+                  <span className="hidden sm:inline">{section.label}</span>
+                  <span className="sm:hidden">{section.shortLabel}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          {/* シミュレーター表示エリア */}
+          <div className="flex-1 flex flex-col">
+            {activeSection === "data-structure" && (
+              <DataStructureSimulator onLongTask={handleLongTask} />
+            )}
+            {activeSection === "jit" && (
+              <JitSimulator onLongTask={handleLongTask} />
+            )}
+            {activeSection === "gc" && (
+              <GarbageCollectionSimulator onLongTask={handleLongTask} />
+            )}
           </div>
+
+          {/* フッターをスクロール領域内に移動して自然に見えるように配置 */}
+          <footer className="border-t border-slate-900/60 py-8 text-center mt-10">
+            <p className="text-xs text-slate-600 font-mono">
+              ⚡ すべてのベンチマークはメインスレッドで実行されます。実際のパフォーマンス影響を体感してください。
+            </p>
+          </footer>
+        </main>
+      </div>
+
+      {/* 下側: パフォーマンスモニター - 画面最下部に完全に fixed で独立して固定、ドラッグで高さを可変可能 */}
+      <div 
+        style={{ height: `${monitorHeight}px` }}
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-900 bg-slate-950/95 backdrop-blur-md shadow-[0_-15px_30px_rgba(0,0,0,0.6)] px-6 md:px-12 lg:px-16 pb-6 flex flex-col"
+      >
+        {/* リサイズ用ドラッグハンドルバー */}
+        <div
+          onMouseDown={startResizing}
+          className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize bg-slate-900/50 hover:bg-cyan-500/50 transition-colors flex items-center justify-center group z-50"
+          title="ドラッグして高さをリサイズ"
+        >
+          {/* つまみ用の小さなドット/バー線 */}
+          <div className="w-12 h-0.5 bg-slate-700 group-hover:bg-cyan-400 rounded-full transition-colors" />
         </div>
-      </nav>
 
-      {/* メインコンテンツ: 上部にシミュレーター、下部にモニター */}
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* シミュレーター表示エリア */}
-        <div className="min-h-[60vh]">
-          {activeSection === "data-structure" && (
-            <DataStructureSimulator onLongTask={handleLongTask} />
-          )}
-          {activeSection === "jit" && (
-            <JitSimulator onLongTask={handleLongTask} />
-          )}
-          {activeSection === "gc" && (
-            <GarbageCollectionSimulator onLongTask={handleLongTask} />
-          )}
+        {/* パフォーマンスモニター本体 (インナーラッパー) */}
+        <div className="flex-1 min-h-0 pt-3">
+          <PerformanceMonitor externalLogs={performanceLogs} />
         </div>
-
-        {/* パフォーマンスモニター: 常に下部に表示 */}
-        {isMonitorExpanded && (
-          <div className="sticky bottom-0 z-20">
-            <PerformanceMonitor externalLogs={performanceLogs} />
-          </div>
-        )}
-      </main>
-
-      {/* フッター */}
-      <footer className="border-t border-gray-800/50 py-4 text-center">
-        <p className="text-xs text-gray-600 font-mono">
-          ⚡ すべてのベンチマークはメインスレッドで実行されます。実際のパフォーマンス影響を体感してください。
-        </p>
-      </footer>
+      </div>
     </div>
   );
 }
