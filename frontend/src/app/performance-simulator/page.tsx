@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import type { CSSProperties } from "react";
+import { useState, useCallback, useEffect } from "react";
 import DataStructureSimulator from "@/components/performance-simulator/DataStructureSimulator";
 import JitSimulator from "@/components/performance-simulator/JitSimulator";
 import GarbageCollectionSimulator from "@/components/performance-simulator/GarbageCollectionSimulator";
@@ -53,42 +52,18 @@ export default function PerformanceSimulatorPage() {
         "パフォーマンスモニター起動。Long Task（50ms以上）とFPS低下をリアルタイムで監視中...",
     },
   ]);
-  const [monitorHeight, setMonitorHeight] = useState(240);
-
-  /** 連打・リサイズドラッグ管理用のref */
-  const isResizingRef = useRef(false);
-
-  const startResizing = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    isResizingRef.current = true;
-    document.body.style.cursor = "ns-resize";
-    document.body.style.userSelect = "none";
-  }, []);
+  const [isMonitorOpen, setIsMonitorOpen] = useState(false);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return;
-      const newHeight = window.innerHeight - e.clientY;
-      const minHeight = 120;
-      const maxHeight = window.innerHeight * 0.8;
-      if (newHeight >= minHeight && newHeight <= maxHeight) {
-        setMonitorHeight(newHeight);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMonitorOpen(false);
       }
     };
 
-    const handleMouseUp = () => {
-      if (isResizingRef.current) {
-        isResizingRef.current = false;
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -111,10 +86,7 @@ export default function PerformanceSimulatorPage() {
   );
 
   return (
-    <div
-      className={styles.container}
-      style={{ "--monitor-height": `${monitorHeight}px` } as CSSProperties}
-    >
+    <div className={styles.container}>
       {/* ヘッダー: 固定高さで管理を容易に */}
       <header className={styles.header}>
         <div className={styles.headerContent}>
@@ -140,7 +112,7 @@ export default function PerformanceSimulatorPage() {
       {/* メインレイアウトコンテナ */}
       <div className={styles.mainLayout}>
         
-        {/* 上側: シミュレータメインエリア - fixedのモニターに被らないよう、動的に下部余白を確保 */}
+        {/* 上側: シミュレータメインエリア */}
         <main className={styles.mainArea}>
           
           {/* セクションナビゲーション - justify-centerを追加して中央寄せ */}
@@ -184,25 +156,58 @@ export default function PerformanceSimulatorPage() {
         </main>
       </div>
 
-      {/* 下側: パフォーマンスモニター - 画面最下部に完全に fixed で独立して固定、ドラッグで高さを可変可能 */}
-      <div 
-        className={styles.monitorContainer}
-      >
-        {/* リサイズ用ドラッグハンドルバー */}
-        <div
-          onMouseDown={startResizing}
-          className={styles.resizeHandle}
-          title="ドラッグして高さをリサイズ"
+      {!isMonitorOpen && (
+        <button
+          type="button"
+          className={styles.monitorToggle}
+          onClick={() => setIsMonitorOpen(true)}
+          aria-expanded={isMonitorOpen}
+          aria-controls="performance-monitor-panel"
         >
-          {/* つまみ用の小さなドット/バー線 */}
-          <div className={styles.resizeBar} />
-        </div>
+          <span className={styles.monitorToggleIcon}>📊</span>
+          <span className={styles.monitorToggleLabel}>Monitor</span>
+          <span className={styles.monitorToggleBadge}>
+            {performanceLogs.length}
+          </span>
+        </button>
+      )}
 
-        {/* パフォーマンスモニター本体 (インナーラッパー) */}
+      <div
+        id="performance-monitor-panel"
+        className={`${styles.monitorPanel} ${
+          isMonitorOpen ? styles.open : ""
+        }`}
+        aria-hidden={!isMonitorOpen}
+      >
+        <div className={styles.monitorPanelHeader}>
+          <div>
+            <p className={styles.monitorPanelEyebrow}>Runtime diagnostics</p>
+            <h2 className={styles.monitorPanelTitle}>
+              Performance Monitor
+            </h2>
+          </div>
+          <button
+            type="button"
+            className={styles.monitorCloseButton}
+            onClick={() => setIsMonitorOpen(false)}
+            aria-label="Performance Monitorを閉じる"
+          >
+            ×
+          </button>
+        </div>
         <div className={styles.monitorInner}>
           <PerformanceMonitor externalLogs={performanceLogs} />
         </div>
       </div>
+
+      {isMonitorOpen && (
+        <button
+          type="button"
+          className={styles.monitorScrim}
+          onClick={() => setIsMonitorOpen(false)}
+          aria-label="Performance Monitorを閉じる"
+        />
+      )}
     </div>
   );
 }

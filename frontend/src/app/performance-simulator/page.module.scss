@@ -116,7 +116,6 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  padding-bottom: calc(var(--monitor-height, 320px) + 2.5rem);
 }
 
 /* ── セクションナビゲーション ── */
@@ -222,60 +221,154 @@
   letter-spacing: 0.02em;
 }
 
-/* ── ボトム固定モニター ── */
-.monitorContainer {
+/* ── パフォーマンスモニター: 右サイドドロワー ── */
+.monitorToggle {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--monitor-height, 320px);
-  z-index: 50;
-  background: rgba(2, 9, 23, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(6, 182, 212, 0.15);
-  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.7), 0 -1px 0 rgba(6, 182, 212, 0.08);
-  padding: 0 1.5rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-
-  @media (min-width: 768px)  { padding: 0 2.5rem 1.5rem; }
-  @media (min-width: 1280px) { padding: 0 4rem 1.5rem; }
-}
-
-/* リサイズハンドル: ドラッグ可能であることを視覚的に示す */
-.resizeHandle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 0.5rem;
-  cursor: ns-resize;
-  display: flex;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 70;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  z-index: 10;
-  transition: background-color 0.2s;
+  gap: 0.625rem;
+  min-height: 3rem;
+  padding: 0 0.875rem;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: 9999px;
+  background: rgba(2, 9, 23, 0.95);
+  color: var(--color-text-primary);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(6, 182, 212, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
 
   &:hover {
-    background: rgba(6, 182, 212, 0.08);
-
-    .resizeBar { background: var(--color-cyan-400); }
+    transform: translateY(-1px);
+    border-color: rgba(6, 182, 212, 0.45);
+    background: rgba(6, 18, 34, 0.98);
   }
 }
 
-.resizeBar {
-  width: 3rem;
-  height: 3px;
-  background: var(--color-border-default);
+.monitorToggleIcon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.monitorToggleLabel {
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+
+.monitorToggleBadge {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.375rem;
   border-radius: 9999px;
-  transition: background-color 0.2s;
+  background: rgba(6, 182, 212, 0.14);
+  color: var(--color-cyan-300);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.monitorPanel {
+  position: fixed;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  width: min(28rem, calc(100vw - 1.5rem));
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  background: rgba(2, 9, 23, 0.97);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border-left: 1px solid rgba(6, 182, 212, 0.18);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.58), -1px 0 0 rgba(6, 182, 212, 0.08);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.open {
+    transform: translateX(0);
+  }
+}
+
+.monitorPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.monitorPanelEyebrow {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.monitorPanelTitle {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.monitorCloseButton {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(15, 23, 42, 0.75);
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+
+  &:hover {
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-default);
+  }
 }
 
 .monitorInner {
   flex: 1;
   min-height: 0;
-  padding-top: 0.875rem;
+}
+
+.monitorScrim {
+  position: fixed;
+  inset: var(--header-height) 0 0;
+  z-index: 55;
+  border: 0;
+  background: rgba(2, 9, 23, 0.08);
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .monitorToggle {
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .monitorPanel {
+    top: 0;
+    width: min(100vw, 26rem);
+    padding: 1rem;
+    border-left: 0;
+  }
+
+  .monitorScrim {
+    inset: 0;
+    background: rgba(2, 9, 23, 0.42);
+  }
 }
 
 /* ── アニメーション ── */
